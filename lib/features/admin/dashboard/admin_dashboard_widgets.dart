@@ -10,11 +10,19 @@ class AdminStatCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Deteksi ukuran layar untuk responsivitas
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Jika di HP (kurang dari 600px), tampilkan 2 kolom. Jika Desktop/Tablet besar, 4 kolom.
+    final int crossAxisCount = screenWidth < 600 ? 2 : (screenWidth < 900 ? 2 : 4);
+    // Sesuaikan rasio kotak agar tidak terlalu gepeng di layar kecil
+    final double aspectRatio = screenWidth < 600 ? 1.2 : 1.4;
+
     return GridView.count(
-      crossAxisCount: 4,
+      crossAxisCount: crossAxisCount,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.4,
+      childAspectRatio: aspectRatio,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
@@ -128,7 +136,7 @@ class SesiAkademikCard extends StatelessWidget {
 
 // ── Quick Actions ─────────────────────────────────────────
 class AdminQuickActions extends StatelessWidget {
-  final List<VoidCallback?> onActions; // [tambahSantri, pengumuman, geofence, kelas]
+  final List<VoidCallback?> onActions;
 
   const AdminQuickActions({super.key, required this.onActions});
 
@@ -140,40 +148,61 @@ class AdminQuickActions extends StatelessWidget {
       (Icons.location_on_rounded,'Atur Geofence',     const Color(0xFF8A5E2E)),
       (Icons.class_rounded,      'Buat Kelas',        const Color(0xFF5E2E8A)),
     ];
+    
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    // Jika di HP, gunakan GridView 2x2 agar teks tidak bertumpuk
+    if (isMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.1,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        children: List.generate(actions.length, (i) => _buildActionCard(actions[i], i)),
+      );
+    }
+
+    // Jika Desktop, gunakan Row menyamping seperti semula
     return Row(
       children: List.generate(actions.length, (i) {
-        final a = actions[i];
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(right: i < actions.length - 1 ? 12 : 0),
-            child: GestureDetector(
-              onTap: onActions.length > i ? onActions[i] : null,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: a.$3.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: a.$3.withOpacity(0.2)),
-                ),
-                child: Column(children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: a.$3.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(a.$1, color: a.$3, size: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(a.$2, textAlign: TextAlign.center,
-                    style: TextStyle(color: a.$3,
-                      fontWeight: FontWeight.w600, fontSize: 12)),
-                ]),
-              ),
-            ),
+            child: _buildActionCard(actions[i], i),
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildActionCard((IconData, String, Color) a, int index) {
+    return GestureDetector(
+      onTap: onActions.length > index ? onActions[index] : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: a.$3.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: a.$3.withOpacity(0.2)),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: a.$3.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(a.$1, color: a.$3, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(a.$2, textAlign: TextAlign.center,
+            style: TextStyle(color: a.$3,
+              fontWeight: FontWeight.w600, fontSize: 12)),
+        ]),
+      ),
     );
   }
 }
@@ -192,7 +221,7 @@ class DateBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBg, borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider)),
-      child: Row(children: [
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
         Text(

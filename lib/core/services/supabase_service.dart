@@ -414,6 +414,9 @@ class SupabaseService {
         id, santri:santri_id(id, nim, profile:profile_id(nama_lengkap))
       ''').eq('kelas_id', kelasId);
 
+  static Future<void> deleteKelas(String kelasId) async =>
+      await client.from('kelas').delete().eq('id', kelasId);
+
   // ─── SEMESTER ───────────────────────────────────────────
   static Future<List<Map<String, dynamic>>> getAllSemester() async =>
       await client.from('semester').select('''

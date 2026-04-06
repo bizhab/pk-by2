@@ -29,8 +29,12 @@ class AdminSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return Container(
-      width: 220,
+      // Lebar diatur fleksibel jika dipanggil di dalam Drawer (Mobile), 
+      // Tetap 220-250 jika di layout Row Desktop
+      width: isDesktop ? 250 : double.infinity,
       color: AppColors.primary,
       child: SafeArea(child: Column(children: [
         _buildHeader(),
@@ -56,7 +60,7 @@ class AdminSidebar extends StatelessWidget {
           child: const Icon(Icons.mosque_rounded, color: Colors.white, size: 44),
         ),
         const SizedBox(height: 10),
-        Text('SIMAMAH', style: TextStyle(
+        const Text('SIMAMAH', style: TextStyle(
           fontFamily: 'Playfair Display',
           color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
         Text('Panel Admin', style: TextStyle(

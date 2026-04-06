@@ -23,25 +23,38 @@ class _SemesterPageState extends State<SemesterPage> {
     setState(() => _loading = true);
     try {
       final data = await SupabaseService.getAllSemester();
-      setState(() { _semesters = data; _loading = false; });
-    } catch (e) { setState(() => _loading = false); }
+      if (mounted) setState(() { _semesters = data; _loading = false; });
+    } catch (e) { 
+      if (mounted) setState(() => _loading = false); 
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28), // RESPONSIVE PADDING
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Tahun Akademik & Semester', style: Theme.of(context).textTheme.headlineMedium),
-            ElevatedButton.icon(
-              onPressed: () => _showForm(context),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Buat Semester'),
-            ),
-          ]),
+          // RESPONSIVE HEADER: Gunakan Wrap
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Tahun Akademik & Semester', 
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontSize: isMobile ? 22 : 26,
+                )),
+              ElevatedButton.icon(
+                onPressed: () => _showForm(context),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Buat Semester'),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           Expanded(child: _loading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -68,7 +81,7 @@ class _SemesterPageState extends State<SemesterPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
+                          Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
                             Text('${s['nama']} ${ta['nama']}', style: const TextStyle(
                               fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
                             if (isActive) ...[
@@ -131,80 +144,87 @@ class _SemesterFormDialogState extends State<_SemesterFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 500;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 440, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.calendar_today_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            const Text('Buat Semester Baru', style: TextStyle(color: Colors.white,
-                fontWeight: FontWeight.w700, fontSize: 16)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white)),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.calendar_today_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Buat Semester Baru', style: TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(key: _formKey, child: Column(children: [
+                TextFormField(
+                  controller: _tahunAkademik,
+                  decoration: const InputDecoration(labelText: 'Tahun Akademik (contoh: 2024/2025)'),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _namaSemester,
+                  decoration: const InputDecoration(labelText: 'Semester'),
+                  items: const [
+                    DropdownMenuItem(value: 'Ganjil', child: Text('Ganjil')),
+                    DropdownMenuItem(value: 'Genap', child: Text('Genap')),
+                  ],
+                  validator: (v) => v == null ? 'Pilih semester' : null,
+                  onChanged: (v) => setState(() => _namaSemester = v),
+                ),
+                const SizedBox(height: 12),
+                // RESPONSIVE DATES INPUT
+                if (isMobile) ...[
+                  _DatePicker(label: 'Tanggal Mulai', value: _mulai, onPick: (d) => setState(() => _mulai = d)),
+                  const SizedBox(height: 12),
+                  _DatePicker(label: 'Tanggal Selesai', value: _selesai, onPick: (d) => setState(() => _selesai = d)),
+                ] else
+                  Row(children: [
+                    Expanded(child: _DatePicker(label: 'Tanggal Mulai', value: _mulai, onPick: (d) => setState(() => _mulai = d))),
+                    const SizedBox(width: 12),
+                    Expanded(child: _DatePicker(label: 'Tanggal Selesai', value: _selesai, onPick: (d) => setState(() => _selesai = d))),
+                  ]),
+              ])),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _loading ? null : _save,
+                  child: _loading
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan'),
+                ),
+              ]),
+            ),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(key: _formKey, child: Column(children: [
-            TextFormField(
-              controller: _tahunAkademik,
-              decoration: const InputDecoration(labelText: 'Tahun Akademik (contoh: 2024/2025)'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _namaSemester,
-              decoration: const InputDecoration(labelText: 'Semester'),
-              items: const [
-                DropdownMenuItem(value: 'Ganjil', child: Text('Ganjil')),
-                DropdownMenuItem(value: 'Genap', child: Text('Genap')),
-              ],
-              validator: (v) => v == null ? 'Pilih semester' : null,
-              onChanged: (v) => setState(() => _namaSemester = v),
-            ),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _DatePicker(
-                label: 'Tanggal Mulai',
-                value: _mulai,
-                onPick: (d) => setState(() => _mulai = d),
-              )),
-              const SizedBox(width: 12),
-              Expanded(child: _DatePicker(
-                label: 'Tanggal Selesai',
-                value: _selesai,
-                onPick: (d) => setState(() => _selesai = d),
-              )),
-            ]),
-          ])),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: _loading ? null : _save,
-              child: _loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Simpan'),
-            ),
-          ]),
-        ),
-      ])),
+      ),
     );
   }
 
   Future<void> _save() async {
+    // ... Logika save tidak berubah ...
     if (!_formKey.currentState!.validate() || _mulai == null || _selesai == null) {
       showError(context, 'Lengkapi semua field');
       return;
@@ -257,6 +277,7 @@ class _DatePicker extends StatelessWidget {
           Expanded(child: Text(
             value == null ? label : '${value!.day}/${value!.month}/${value!.year}',
             style: TextStyle(color: value == null ? AppColors.textLight : AppColors.textDark, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
           )),
         ]),
       ),
@@ -296,129 +317,150 @@ class _GeofencePageState extends State<GeofencePage> {
         _radius.text = data['radius_meter'].toString();
         _nama.text   = data['nama'] ?? '';
       }
-      setState(() { _geofence = data; _loading = false; });
-    } catch (e) { setState(() => _loading = false); }
+      if (mounted) setState(() { _geofence = data; _loading = false; });
+    } catch (e) { 
+      if (mounted) setState(() => _loading = false); 
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 700; // Threshold untuk Geofence
+
+    // Konten Info Panel
+    final infoPanel = Column(children: [
+      AppCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Info Geofence Aktif', style: TextStyle(
+            fontWeight: FontWeight.w700, color: AppColors.textDark)),
+          const SizedBox(height: 16),
+          if (_geofence == null)
+            const Text('Belum ada geofence yang dikonfigurasi.',
+              style: TextStyle(color: AppColors.textLight))
+          else ...[
+            _InfoRow(label: 'Nama', value: _geofence!['nama']),
+            _InfoRow(label: 'Latitude', value: _geofence!['latitude'].toString()),
+            _InfoRow(label: 'Longitude', value: _geofence!['longitude'].toString()),
+            _InfoRow(label: 'Radius', value: '${_geofence!['radius_meter']} meter'),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 16),
+      AppCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Cara Mendapatkan Koordinat', style: TextStyle(
+            fontWeight: FontWeight.w700, color: AppColors.textDark)),
+          const SizedBox(height: 12),
+          const Text(
+            '1. Buka Google Maps di browser\n'
+            '2. Klik kanan pada lokasi pesantren\n'
+            '3. Koordinat akan muncul di menu konteks\n'
+            '4. Copy format: latitude, longitude',
+            style: TextStyle(fontSize: 12, color: AppColors.textMid, height: 1.7),
+          ),
+        ]),
+      ),
+    ]);
+
+    // Konten Form Panel
+    final formPanel = AppCard(
+      child: Form(key: _formKey, child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            const Text('Konfigurasi Lokasi', style: TextStyle(
+              fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
+          ]),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _nama,
+            decoration: const InputDecoration(labelText: 'Nama Lokasi'),
+          ),
+          const SizedBox(height: 12),
+          // RESPONSIVE LAT / LNG INPUT
+          if (isMobile) ...[
+            TextFormField(
+              controller: _lat, keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Latitude', hintText: 'contoh: -5.147665'),
+              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _lng, keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Longitude', hintText: 'contoh: 119.432732'),
+              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+            ),
+          ] else 
+            Row(children: [
+              Expanded(child: TextFormField(
+                controller: _lat, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Latitude', hintText: 'contoh: -5.147665'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: TextFormField(
+                controller: _lng, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Longitude', hintText: 'contoh: 119.432732'),
+                validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+              )),
+            ]),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _radius, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Radius (meter)', hintText: 'contoh: 100', suffixText: 'meter'),
+            validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                ? const SizedBox(width: 18, height: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text(_geofence == null ? 'Simpan Geofence' : 'Update Geofence'),
+            ),
+          ),
+        ],
+      )),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _loading
         ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
         : SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
+          padding: EdgeInsets.all(isMobile ? 16 : 28),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Pengaturan Geofence', style: Theme.of(context).textTheme.headlineMedium),
+            Text('Pengaturan Geofence', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: isMobile ? 22 : 26,
+            )),
             const SizedBox(height: 6),
             const Text('Atur titik koordinat dan radius absensi pesantren.',
               style: TextStyle(color: AppColors.textLight, fontSize: 13)),
             const SizedBox(height: 24),
 
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Form
-              Expanded(flex: 4, child: AppCard(
-                child: Form(key: _formKey, child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 20),
-                      const SizedBox(width: 8),
-                      const Text('Konfigurasi Lokasi', style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
-                    ]),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _nama,
-                      decoration: const InputDecoration(labelText: 'Nama Lokasi'),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(child: TextFormField(
-                        controller: _lat, keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                          hintText: 'contoh: -5.147665',
-                        ),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-                      )),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextFormField(
-                        controller: _lng, keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                          hintText: 'contoh: 119.432732',
-                        ),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-                      )),
-                    ]),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _radius, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Radius (meter)',
-                        hintText: 'contoh: 100',
-                        suffixText: 'meter',
-                      ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _save,
-                        child: _saving
-                          ? const SizedBox(width: 18, height: 18,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(_geofence == null ? 'Simpan Geofence' : 'Update Geofence'),
-                      ),
-                    ),
-                  ],
-                )),
-              )),
-              const SizedBox(width: 20),
-
-              // Info panel
-              Expanded(flex: 3, child: Column(children: [
-                AppCard(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Info Geofence Aktif', style: TextStyle(
-                      fontWeight: FontWeight.w700, color: AppColors.textDark)),
-                    const SizedBox(height: 16),
-                    if (_geofence == null)
-                      const Text('Belum ada geofence yang dikonfigurasi.',
-                        style: TextStyle(color: AppColors.textLight))
-                    else ...[
-                      _InfoRow(label: 'Nama', value: _geofence!['nama']),
-                      _InfoRow(label: 'Latitude', value: _geofence!['latitude'].toString()),
-                      _InfoRow(label: 'Longitude', value: _geofence!['longitude'].toString()),
-                      _InfoRow(label: 'Radius', value: '${_geofence!['radius_meter']} meter'),
-                    ],
-                  ]),
-                ),
-                const SizedBox(height: 16),
-                AppCard(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Cara Mendapatkan Koordinat', style: TextStyle(
-                      fontWeight: FontWeight.w700, color: AppColors.textDark)),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '1. Buka Google Maps di browser\n'
-                      '2. Klik kanan pada lokasi pesantren\n'
-                      '3. Koordinat akan muncul di menu konteks\n'
-                      '4. Copy format: latitude, longitude',
-                      style: TextStyle(fontSize: 12, color: AppColors.textMid, height: 1.7),
-                    ),
-                  ]),
-                ),
-              ])),
-            ]),
+            // RESPONSIVE LAYOUT FORM & INFO
+            if (isMobile) ...[
+              formPanel,
+              const SizedBox(height: 24),
+              infoPanel,
+            ] else
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(flex: 4, child: formPanel),
+                const SizedBox(width: 20),
+                Expanded(flex: 3, child: infoPanel),
+              ]),
           ]),
         ),
     );
   }
 
   Future<void> _save() async {
+    // ... Logika save tidak berubah ...
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
@@ -438,8 +480,10 @@ class _GeofencePageState extends State<GeofencePage> {
       if (mounted) showSuccess(context, 'Geofence berhasil disimpan');
       _load();
     } catch (e) {
-      setState(() => _saving = false);
-      if (mounted) showError(context, 'Error: $e');
+      if (mounted) {
+        setState(() => _saving = false);
+        showError(context, 'Error: $e');
+      }
     }
   }
 }
@@ -479,8 +523,10 @@ class _PengumumanPageState extends State<PengumumanPage> {
     setState(() => _loading = true);
     try {
       final data = await SupabaseService.getAllPengumuman();
-      setState(() { _pengumuman = data; _loading = false; });
-    } catch (e) { setState(() => _loading = false); }
+      if (mounted) setState(() { _pengumuman = data; _loading = false; });
+    } catch (e) { 
+      if (mounted) setState(() => _loading = false); 
+    }
   }
 
   static const _targetColors = {
@@ -491,19 +537,29 @@ class _PengumumanPageState extends State<PengumumanPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Pengumuman', style: Theme.of(context).textTheme.headlineMedium),
-            ElevatedButton.icon(
-              onPressed: () => _showForm(context),
-              icon: const Icon(Icons.campaign_rounded, size: 18),
-              label: const Text('Buat Pengumuman'),
-            ),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Pengumuman', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: isMobile ? 22 : 26,
+              )),
+              ElevatedButton.icon(
+                onPressed: () => _showForm(context),
+                icon: const Icon(Icons.campaign_rounded, size: 18),
+                label: const Text('Buat Pengumuman'),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           Expanded(child: _loading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -530,9 +586,9 @@ class _PengumumanPageState extends State<PengumumanPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Expanded(child: Text(p['judul'] ?? '-', style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textDark))),
+                          Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
+                            Text(p['judul'] ?? '-', style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textDark)),
                             StatusBadge(
                               label: target == 'all' ? 'SEMUA' : target.toUpperCase(),
                               color: color,
@@ -591,97 +647,131 @@ class _PengumumanFormDialogState extends State<_PengumumanFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 500;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 500, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.campaign_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            const Text('Buat Pengumuman', style: TextStyle(color: Colors.white,
-                fontWeight: FontWeight.w700, fontSize: 16)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(key: _formKey, child: Column(children: [
-            TextFormField(
-              controller: _judul,
-              decoration: const InputDecoration(labelText: 'Judul Pengumuman'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.campaign_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Buat Pengumuman', style: TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white)),
+              ]),
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _isi,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Isi Pengumuman', alignLabelWithHint: true),
-              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
-            ),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: DropdownButtonFormField<String>(
-                initialValue: _target,
-                decoration: const InputDecoration(labelText: 'Target Penerima'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('Semua User')),
-                  DropdownMenuItem(value: 'role', child: Text('Per Role')),
-                ],
-                onChanged: (v) => setState(() { _target = v!; _targetRole = null; }),
-              )),
-              if (_target == 'role') ...[
-                const SizedBox(width: 12),
-                Expanded(child: DropdownButtonFormField<String>(
-                  initialValue: _targetRole,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const [
-                    DropdownMenuItem(value: 'santri', child: Text('Santri')),
-                    DropdownMenuItem(value: 'dosen', child: Text('Dosen')),
-                    DropdownMenuItem(value: 'pembina', child: Text('Pembina')),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(key: _formKey, child: Column(children: [
+                TextFormField(
+                  controller: _judul,
+                  decoration: const InputDecoration(labelText: 'Judul Pengumuman'),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _isi,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Isi Pengumuman', alignLabelWithHint: true),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                ),
+                const SizedBox(height: 12),
+                // RESPONSIVE ROLE TARGET DROPDOWNS
+                if (isMobile) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _target,
+                    decoration: const InputDecoration(labelText: 'Target Penerima'),
+                    items: const [
+                      DropdownMenuItem(value: 'all', child: Text('Semua User')),
+                      DropdownMenuItem(value: 'role', child: Text('Per Role')),
+                    ],
+                    onChanged: (v) => setState(() { _target = v!; _targetRole = null; }),
+                  ),
+                  if (_target == 'role') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _targetRole,
+                      decoration: const InputDecoration(labelText: 'Role'),
+                      items: const [
+                        DropdownMenuItem(value: 'santri', child: Text('Santri')),
+                        DropdownMenuItem(value: 'dosen', child: Text('Dosen')),
+                        DropdownMenuItem(value: 'pembina', child: Text('Pembina')),
+                      ],
+                      onChanged: (v) => setState(() => _targetRole = v),
+                    ),
                   ],
-                  onChanged: (v) => setState(() => _targetRole = v),
-                )),
-              ],
-            ]),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              value: _isPush,
-              onChanged: (v) => setState(() => _isPush = v),
-              title: const Text('Kirim Push Notification', style: TextStyle(
-                fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w500)),
-              activeThumbColor: AppColors.primary,
-              contentPadding: EdgeInsets.zero,
+                ] else
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: DropdownButtonFormField<String>(
+                      initialValue: _target,
+                      decoration: const InputDecoration(labelText: 'Target Penerima'),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('Semua User')),
+                        DropdownMenuItem(value: 'role', child: Text('Per Role')),
+                      ],
+                      onChanged: (v) => setState(() { _target = v!; _targetRole = null; }),
+                    )),
+                    if (_target == 'role') ...[
+                      const SizedBox(width: 12),
+                      Expanded(child: DropdownButtonFormField<String>(
+                        initialValue: _targetRole,
+                        decoration: const InputDecoration(labelText: 'Role'),
+                        items: const [
+                          DropdownMenuItem(value: 'santri', child: Text('Santri')),
+                          DropdownMenuItem(value: 'dosen', child: Text('Dosen')),
+                          DropdownMenuItem(value: 'pembina', child: Text('Pembina')),
+                        ],
+                        onChanged: (v) => setState(() => _targetRole = v),
+                      )),
+                    ],
+                  ]),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  value: _isPush,
+                  onChanged: (v) => setState(() => _isPush = v),
+                  title: const Text('Kirim Push Notification', style: TextStyle(
+                    fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w500)),
+                  activeThumbColor: AppColors.primary,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ])),
             ),
-          ])),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _loading ? null : _save,
-              icon: const Icon(Icons.send_rounded, size: 16),
-              label: _loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Kirim'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _loading ? null : _save,
+                  icon: const Icon(Icons.send_rounded, size: 16),
+                  label: _loading
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Kirim'),
+                ),
+              ]),
             ),
           ]),
         ),
-      ])),
+      ),
     );
   }
 
   Future<void> _save() async {
+    // ... Logika save tidak berubah ...
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
@@ -692,8 +782,10 @@ class _PengumumanFormDialogState extends State<_PengumumanFormDialog> {
       if (mounted) showSuccess(context, 'Pengumuman berhasil dikirim');
       widget.onSaved();
     } catch (e) {
-      setState(() => _loading = false);
-      if (mounted) showError(context, 'Error: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+        showError(context, 'Error: $e');
+      }
     }
   }
 }
@@ -719,41 +811,61 @@ class _KelompokPageState extends State<KelompokPage> {
     setState(() => _loading = true);
     try {
       final sem = await SupabaseService.getActiveSemester();
-      if (sem == null) { setState(() => _loading = false); return; }
+      if (sem == null) { 
+        if (mounted) setState(() => _loading = false); 
+        return; 
+      }
       final data = await SupabaseService.getKelompokPembina(sem['id']);
-      setState(() { _activeSemester = sem; _kelompok = data; _loading = false; });
-    } catch (e) { setState(() => _loading = false); }
+      if (mounted) setState(() { _activeSemester = sem; _kelompok = data; _loading = false; });
+    } catch (e) { 
+      if (mounted) setState(() => _loading = false); 
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    // RESPONSIVE GRID
+    final int crossAxisCount = isMobile ? 1 : (screenWidth < 900 ? 2 : 3);
+    final double childAspectRatio = isMobile ? 2.5 : 1.8;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Kelompok Pembina', style: Theme.of(context).textTheme.headlineMedium),
-              Text('Relasi 1 Pembina : 10 Santri',
-                style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
-            ]),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
-              onPressed: _activeSemester == null ? null : () => _showForm(context),
-              icon: const Icon(Icons.group_add_rounded, size: 18),
-              label: const Text('Buat Kelompok'),
-            ),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Kelompok Pembina', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontSize: isMobile ? 22 : 26,
+                )),
+                const Text('Relasi 1 Pembina : 10 Santri',
+                  style: TextStyle(color: AppColors.textLight, fontSize: 13)),
+              ]),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
+                onPressed: _activeSemester == null ? null : () => _showForm(context),
+                icon: const Icon(Icons.group_add_rounded, size: 18),
+                label: const Text('Buat Kelompok'),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           Expanded(child: _loading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
             : _kelompok.isEmpty
               ? const EmptyState(icon: Icons.group_work_outlined, message: 'Belum ada kelompok pembina')
               : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, crossAxisSpacing: 16,
-                    mainAxisSpacing: 16, childAspectRatio: 1.8,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount, crossAxisSpacing: 16,
+                    mainAxisSpacing: 16, childAspectRatio: childAspectRatio,
                   ),
                   itemCount: _kelompok.length,
                   itemBuilder: (_, i) => _KelompokCard(
@@ -796,15 +908,17 @@ class _KelompokCard extends StatelessWidget {
     return AppCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(kelompok['nama_kelompok'] ?? 'Kelompok', style: const TextStyle(
-            fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
+          Expanded(child: Text(kelompok['nama_kelompok'] ?? 'Kelompok', style: const TextStyle(
+            fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark),
+            maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 8),
           StatusBadge(label: '$count/10', color: count >= 10 ? AppColors.primary : Colors.orange),
         ]),
         const SizedBox(height: 4),
         Text('Pembina: ${pembinaProfile['nama_lengkap'] ?? '-'}',
-          style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
+          style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
         const Spacer(),
-        // Progress bar
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
@@ -849,6 +963,7 @@ class _KelompokFormDialog extends StatefulWidget {
 }
 
 class _KelompokFormDialogState extends State<_KelompokFormDialog> {
+  // ... State tidak berubah ...
   final _formKey = GlobalKey<FormState>();
   final _nama = TextEditingController();
   String? _pembinaId;
@@ -859,7 +974,7 @@ class _KelompokFormDialogState extends State<_KelompokFormDialog> {
   void initState() {
     super.initState();
     SupabaseService.getAllPembina().then((data) {
-      setState(() { _pembinas = data; _loadingData = false; });
+      if (mounted) setState(() { _pembinas = data; _loadingData = false; });
     });
   }
 
@@ -867,80 +982,88 @@ class _KelompokFormDialogState extends State<_KelompokFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Color(0xFF8A5E2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.group_add_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            const Text('Buat Kelompok', style: TextStyle(color: Colors.white,
-                fontWeight: FontWeight.w700, fontSize: 16)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: _loadingData
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : Form(key: _formKey, child: Column(children: [
-                TextFormField(
-                  controller: _nama,
-                  decoration: const InputDecoration(labelText: 'Nama Kelompok'),
-                  validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF8A5E2E),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.group_add_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Buat Kelompok', style: TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: _loadingData
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : Form(key: _formKey, child: Column(children: [
+                    TextFormField(
+                      controller: _nama,
+                      decoration: const InputDecoration(labelText: 'Nama Kelompok'),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _pembinaId,
+                      decoration: const InputDecoration(labelText: 'Pilih Pembina'),
+                      items: _pembinas.map((p) {
+                        final profile = p['profile'] as Map? ?? {};
+                        return DropdownMenuItem(
+                          value: p['id'].toString(),
+                          child: Text(profile['nama_lengkap'] ?? p['kode_pembina']),
+                        );
+                      }).toList(),
+                      validator: (v) => v == null ? 'Pilih pembina' : null,
+                      onChanged: (v) => setState(() => _pembinaId = v),
+                    ),
+                  ])),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
+                  onPressed: _loading ? null : () async {
+                    if (!_formKey.currentState!.validate()) return;
+                    setState(() => _loading = true);
+                    try {
+                      await SupabaseService.createKelompok(
+                        pembinaId: _pembinaId!, semesterId: widget.semesterId,
+                        namaKelompok: _nama.text,
+                      );
+                      if (mounted) showSuccess(context, 'Kelompok berhasil dibuat');
+                      widget.onSaved();
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => _loading = false);
+                        showError(context, 'Error: $e');
+                      }
+                    }
+                  },
+                  child: _loading
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Buat'),
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _pembinaId,
-                  decoration: const InputDecoration(labelText: 'Pilih Pembina'),
-                  items: _pembinas.map((p) {
-                    final profile = p['profile'] as Map? ?? {};
-                    return DropdownMenuItem(
-                      value: p['id'].toString(),
-                      child: Text(profile['nama_lengkap'] ?? p['kode_pembina']),
-                    );
-                  }).toList(),
-                  validator: (v) => v == null ? 'Pilih pembina' : null,
-                  onChanged: (v) => setState(() => _pembinaId = v),
-                ),
-              ])),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
-              onPressed: _loading ? null : () async {
-                if (!_formKey.currentState!.validate()) return;
-                setState(() => _loading = true);
-                try {
-                  await SupabaseService.createKelompok(
-                    pembinaId: _pembinaId!, semesterId: widget.semesterId,
-                    namaKelompok: _nama.text,
-                  );
-                  if (mounted) showSuccess(context, 'Kelompok berhasil dibuat');
-                  widget.onSaved();
-                } catch (e) {
-                  setState(() => _loading = false);
-                  if (mounted) showError(context, 'Error: $e');
-                }
-              },
-              child: _loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Buat'),
+              ]),
             ),
           ]),
         ),
-      ])),
+      ),
     );
   }
 }
@@ -964,7 +1087,7 @@ class _ManageKelompokDialogState extends State<_ManageKelompokDialog> {
     setState(() => _loading = true);
     final kps = widget.kelompok['kelompok_santri'] as List? ?? [];
     final allSantri = await SupabaseService.getAllSantri();
-    setState(() {
+    if (mounted) setState(() {
       _inKelompok = kps.cast<Map<String, dynamic>>();
       _allSantri = allSantri;
       _loading = false;
@@ -978,88 +1101,110 @@ class _ManageKelompokDialogState extends State<_ManageKelompokDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    // List Dalam Kelompok
+    final listDalamKelompok = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Dalam Kelompok (${_inKelompok.length})', style: const TextStyle(
+        fontWeight: FontWeight.w700, color: AppColors.textDark)),
+      const SizedBox(height: 8),
+      Expanded(child: ListView.builder(
+        itemCount: _inKelompok.length,
+        itemBuilder: (_, i) {
+          final s = _inKelompok[i]['santri'] as Map? ?? {};
+          final p = s['profile'] as Map? ?? {};
+          return ListTile(
+            dense: true,
+            leading: const Icon(Icons.person_rounded, color: Color(0xFF8A5E2E), size: 18),
+            title: Text(p['nama_lengkap'] ?? '-', style: const TextStyle(fontSize: 13)),
+            subtitle: Text(s['nim'] ?? '-', style: const TextStyle(fontSize: 11)),
+            trailing: IconButton(
+              icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 18),
+              onPressed: () async {
+                await SupabaseService.removeSantriFromKelompok(_inKelompok[i]['id']);
+                widget.onSaved();
+                _load();
+              },
+            ),
+          );
+        },
+      )),
+    ]);
+
+    // List Belum Masuk
+    final listBelumMasuk = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Belum Masuk (${_notInKelompok.length})', style: const TextStyle(
+        fontWeight: FontWeight.w700, color: AppColors.textDark)),
+      const SizedBox(height: 8),
+      Expanded(child: ListView.builder(
+        itemCount: _notInKelompok.length,
+        itemBuilder: (_, i) {
+          final s = _notInKelompok[i];
+          final p = s['profile'] as Map? ?? {};
+          return ListTile(
+            dense: true,
+            enabled: _inKelompok.length < 10,
+            leading: const Icon(Icons.person_outline, color: AppColors.textLight, size: 18),
+            title: Text(p['nama_lengkap'] ?? '-', style: const TextStyle(fontSize: 13)),
+            subtitle: Text(s['nim'] ?? '-', style: const TextStyle(fontSize: 11)),
+            trailing: IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Color(0xFF8A5E2E), size: 18),
+              onPressed: _inKelompok.length >= 10 ? null : () async {
+                await SupabaseService.addSantriToKelompok(
+                  widget.kelompok['id'], s['id']);
+                widget.onSaved();
+                _load();
+              },
+            ),
+          );
+        },
+      )),
+    ]);
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 560, height: 560, child: Column(children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Color(0xFF8A5E2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 600, 
+          maxHeight: MediaQuery.of(context).size.height * 0.85 // Hindari tumpuk di layar pendek
+        ), 
+        child: Column(children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF8A5E2E),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.group_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text('${widget.kelompok['nama_kelompok']} (${_inKelompok.length}/10)',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
+              IconButton(onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white)),
+            ]),
           ),
-          child: Row(children: [
-            const Icon(Icons.group_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Text('${widget.kelompok['nama_kelompok']} (${_inKelompok.length}/10)',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white)),
-          ]),
-        ),
-        Expanded(child: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Dalam Kelompok (${_inKelompok.length})', style: const TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.textDark)),
-                  const SizedBox(height: 8),
-                  Expanded(child: ListView.builder(
-                    itemCount: _inKelompok.length,
-                    itemBuilder: (_, i) {
-                      final s = _inKelompok[i]['santri'] as Map? ?? {};
-                      final p = s['profile'] as Map? ?? {};
-                      return ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.person_rounded, color: Color(0xFF8A5E2E), size: 18),
-                        title: Text(p['nama_lengkap'] ?? '-', style: const TextStyle(fontSize: 13)),
-                        subtitle: Text(s['nim'] ?? '-', style: const TextStyle(fontSize: 11)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 18),
-                          onPressed: () async {
-                            await SupabaseService.removeSantriFromKelompok(_inKelompok[i]['id']);
-                            widget.onSaved();
-                            _load();
-                          },
-                        ),
-                      );
-                    },
-                  )),
-                ])),
-                const VerticalDivider(color: AppColors.divider, width: 32),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Belum Masuk (${_notInKelompok.length})', style: const TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.textDark)),
-                  const SizedBox(height: 8),
-                  Expanded(child: ListView.builder(
-                    itemCount: _notInKelompok.length,
-                    itemBuilder: (_, i) {
-                      final s = _notInKelompok[i];
-                      final p = s['profile'] as Map? ?? {};
-                      return ListTile(
-                        dense: true,
-                        enabled: _inKelompok.length < 10,
-                        leading: const Icon(Icons.person_outline, color: AppColors.textLight, size: 18),
-                        title: Text(p['nama_lengkap'] ?? '-', style: const TextStyle(fontSize: 13)),
-                        subtitle: Text(s['nim'] ?? '-', style: const TextStyle(fontSize: 11)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.add_circle_outline, color: Color(0xFF8A5E2E), size: 18),
-                          onPressed: _inKelompok.length >= 10 ? null : () async {
-                            await SupabaseService.addSantriToKelompok(
-                              widget.kelompok['id'], s['id']);
-                            widget.onSaved();
-                            _load();
-                          },
-                        ),
-                      );
-                    },
-                  )),
-                ])),
-              ]),
-            )),
-      ])),
+          Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : Padding(
+                padding: const EdgeInsets.all(20),
+                // RESPONSIVE TWO-LIST LAYOUT
+                child: isMobile 
+                  ? Column(children: [
+                      Expanded(child: listDalamKelompok),
+                      const Divider(color: AppColors.divider, height: 32),
+                      Expanded(child: listBelumMasuk),
+                    ])
+                  : Row(children: [
+                      Expanded(child: listDalamKelompok),
+                      const VerticalDivider(color: AppColors.divider, width: 32),
+                      Expanded(child: listBelumMasuk),
+                    ]),
+              )),
+        ]),
+      ),
     );
   }
 }

@@ -25,10 +25,14 @@ class _SantriListPageState extends State<SantriListPage> {
     setState(() => _loading = true);
     try {
       final data = await SupabaseService.getAllSantri();
-      setState(() { _santri = data; _filtered = data; _loading = false; });
+      if (mounted) {
+        setState(() { _santri = data; _filtered = data; _loading = false; });
+      }
     } catch (e) {
-      setState(() => _loading = false);
-      if (mounted) showError(context, 'Gagal memuat data: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+        showError(context, 'Gagal memuat data: $e');
+      }
     }
   }
 
@@ -45,19 +49,29 @@ class _SantriListPageState extends State<SantriListPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Deteksi ukuran layar
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28), // Padding responsif
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Header menggunakan Wrap agar tombol tidak terpotong di HP
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 16,
+              runSpacing: 12,
               children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Manajemen Santri', style: Theme.of(context).textTheme.headlineMedium),
+                  Text('Manajemen Santri', 
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: isMobile ? 22 : 26,
+                    )),
                   Text('${_santri.length} santri terdaftar',
                     style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
                 ]),
@@ -81,7 +95,7 @@ class _SantriListPageState extends State<SantriListPage> {
             ),
             const SizedBox(height: 16),
 
-            // Table
+            // Table / List Data
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -95,17 +109,30 @@ class _SantriListPageState extends State<SantriListPage> {
                       : AppCard(
                           padding: EdgeInsets.zero,
                           child: Column(children: [
-                            _TableHeader(),
-                            const Divider(height: 1, color: AppColors.divider),
+                            // Tampilkan Header Tabel hanya di Desktop
+                            if (!isMobile) _TableHeader(),
+                            if (!isMobile) const Divider(height: 1, color: AppColors.divider),
+                            
                             Expanded(
                               child: ListView.separated(
                                 itemCount: _filtered.length,
                                 separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
-                                itemBuilder: (ctx, i) => _SantriRow(
-                                  santri: _filtered[i],
-                                  onEdit: () => _showFormDialog(context, santri: _filtered[i]),
-                                  onDelete: () => _deleteSantri(_filtered[i]),
-                                ),
+                                itemBuilder: (ctx, i) {
+                                  // Jika HP, tampilkan Card menyusun ke bawah. Jika Desktop, tampilkan baris tabel
+                                  if (isMobile) {
+                                    return _SantriMobileCard(
+                                      santri: _filtered[i],
+                                      onEdit: () => _showFormDialog(context, santri: _filtered[i]),
+                                      onDelete: () => _deleteSantri(_filtered[i]),
+                                    );
+                                  } else {
+                                    return _SantriRow(
+                                      santri: _filtered[i],
+                                      onEdit: () => _showFormDialog(context, santri: _filtered[i]),
+                                      onDelete: () => _deleteSantri(_filtered[i]),
+                                    );
+                                  }
+                                },
                               ),
                             ),
                           ]),
@@ -126,10 +153,10 @@ class _SantriListPageState extends State<SantriListPage> {
     if (!ok) return;
     try {
       await SupabaseService.deleteSantri(profile['id']);
-      showSuccess(context, 'Santri berhasil dihapus');
+      if (mounted) showSuccess(context, 'Santri berhasil dihapus');
       _load();
     } catch (e) {
-      showError(context, 'Gagal menghapus: $e');
+      if (mounted) showError(context, 'Gagal menghapus: $e');
     }
   }
 
@@ -145,6 +172,65 @@ class _SantriListPageState extends State<SantriListPage> {
   }
 }
 
+// ── Tampilan List Khusus Mobile ───────────────────────────
+class _SantriMobileCard extends StatelessWidget {
+  final Map<String, dynamic> santri;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _SantriMobileCard({required this.santri, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = santri['profile'] as Map? ?? {};
+    final nama = profile['nama_lengkap'] ?? '-';
+    final nim = santri['nim'] ?? '-';
+    final angkatan = santri['angkatan']?.toString() ?? '-';
+    final status = santri['status'] ?? 'aktif';
+
+    Color statusColor;
+    switch (status) {
+      case 'aktif': statusColor = AppColors.primary; break;
+      case 'cuti': statusColor = Colors.orange; break;
+      case 'lulus': statusColor = Colors.blue; break;
+      default: statusColor = AppColors.error;
+    }
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: CircleAvatar(
+        backgroundColor: AppColors.primary.withOpacity(0.15),
+        child: Text(nama.isNotEmpty ? nama[0].toUpperCase() : 'S',
+            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+      ),
+      title: Text(nama, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark)),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('NIM: $nim • Angkatan: $angkatan', style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 6),
+            StatusBadge(label: status.toUpperCase(), color: statusColor),
+          ],
+        ),
+      ),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          onPressed: onEdit, icon: const Icon(Icons.edit_rounded, size: 20),
+          color: AppColors.secondary, padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          onPressed: onDelete, icon: const Icon(Icons.delete_rounded, size: 20),
+          color: AppColors.error, padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Tampilan Header & Baris Tabel Khusus Desktop ──────────
 class _TableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -259,94 +345,123 @@ class _SantriFormDialogState extends State<_SantriFormDialog> {
     }
   }
 
+  // Fungsi helper untuk menyusun kolom input agar responsif
+  Widget _buildResponsiveRow(Widget child1, Widget child2, bool isMobile) {
+    if (isMobile) {
+      return Column(children: [
+        child1,
+        const SizedBox(height: 12),
+        child2,
+      ]);
+    }
+    return Row(children: [
+      Expanded(child: child1),
+      const SizedBox(width: 12),
+      Expanded(child: child2),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(
-        width: 500,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Title bar
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Row(children: [
-              const Icon(Icons.school_rounded, color: Colors.white),
-              const SizedBox(width: 10),
-              Text(_isEdit ? 'Edit Santri' : 'Tambah Santri Baru',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-              const Spacer(),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white),
+      insetPadding: const EdgeInsets.all(16), // Jarak aman layar
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500), // Batas maksimal lebar di desktop
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Title bar
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-            ]),
-          ),
-
-          // Form
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(children: [
-                Row(children: [
-                  Expanded(child: _field(_nama, 'Nama Lengkap', Icons.person_rounded, required: true)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _field(_nim, 'NIM', Icons.badge_rounded, required: true,
-                      enabled: !_isEdit)),
-                ]),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: _field(_email, 'Email', Icons.email_rounded,
-                      required: !_isEdit, enabled: !_isEdit)),
-                  const SizedBox(height: 12, width: 12),
-                  if (!_isEdit) Expanded(child: _field(_password, 'Password', Icons.lock_rounded,
-                      required: true, obscure: true)),
-                  if (_isEdit) Expanded(child: _field(_angkatan, 'Angkatan', Icons.calendar_today_rounded)),
-                ]),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: _field(_noHp, 'No. HP', Icons.phone_rounded)),
-                  const SizedBox(width: 12),
-                  Expanded(child: DropdownButtonFormField<String>(
-                    initialValue: _gender,
-                    decoration: const InputDecoration(
-                      labelText: 'Gender',
-                      prefixIcon: Icon(Icons.wc_rounded, color: AppColors.textLight),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'L', child: Text('Laki-laki')),
-                      DropdownMenuItem(value: 'P', child: Text('Perempuan')),
-                    ],
-                    onChanged: (v) => setState(() => _gender = v),
-                  )),
-                ]),
+              child: Row(children: [
+                const Icon(Icons.school_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                Text(_isEdit ? 'Edit Santri' : 'Tambah Santri Baru',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close, color: Colors.white),
+                ),
               ]),
             ),
-          ),
 
-          // Actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textMid)),
+            // Form
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(children: [
+                  _buildResponsiveRow(
+                    _field(_nama, 'Nama Lengkap', Icons.person_rounded, required: true),
+                    _field(_nim, 'NIM', Icons.badge_rounded, required: true, enabled: !_isEdit),
+                    isMobile
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Khusus untuk baris Email & Password/Angkatan
+                  isMobile
+                      ? Column(children: [
+                          _field(_email, 'Email', Icons.email_rounded, required: !_isEdit, enabled: !_isEdit),
+                          const SizedBox(height: 12),
+                          if (!_isEdit) _field(_password, 'Password', Icons.lock_rounded, required: true, obscure: true),
+                          if (_isEdit) _field(_angkatan, 'Angkatan', Icons.calendar_today_rounded),
+                        ])
+                      : Row(children: [
+                          Expanded(child: _field(_email, 'Email', Icons.email_rounded, required: !_isEdit, enabled: !_isEdit)),
+                          const SizedBox(width: 12),
+                          if (!_isEdit) Expanded(child: _field(_password, 'Password', Icons.lock_rounded, required: true, obscure: true)),
+                          if (_isEdit) Expanded(child: _field(_angkatan, 'Angkatan', Icons.calendar_today_rounded)),
+                        ]),
+                  
+                  const SizedBox(height: 12),
+                  _buildResponsiveRow(
+                    _field(_noHp, 'No. HP', Icons.phone_rounded),
+                    DropdownButtonFormField<String>(
+                      initialValue: _gender,
+                      decoration: const InputDecoration(
+                        labelText: 'Gender',
+                        prefixIcon: Icon(Icons.wc_rounded, color: AppColors.textLight),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'L', child: Text('Laki-laki')),
+                        DropdownMenuItem(value: 'P', child: Text('Perempuan')),
+                      ],
+                      onChanged: (v) => setState(() => _gender = v),
+                    ),
+                    isMobile
+                  ),
+                ]),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: _loading ? null : _save,
-                child: _loading
-                    ? const SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Santri'),
-              ),
-            ]),
-          ),
-        ]),
+            ),
+
+            // Actions
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Batal', style: TextStyle(color: AppColors.textMid)),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _loading ? null : _save,
+                  child: _loading
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(_isEdit ? 'Simpan Perubahan' : 'Tambah Santri'),
+                ),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
   }
@@ -392,8 +507,10 @@ class _SantriFormDialogState extends State<_SantriFormDialog> {
       }
       widget.onSaved();
     } catch (e) {
-      setState(() => _loading = false);
-      if (mounted) showError(context, 'Error: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+        showError(context, 'Error: $e');
+      }
     }
   }
 }
