@@ -136,6 +136,44 @@ class AppTextStyles {
   );
 }
 
+/// Responsive spacing tokens untuk consistent spacing di semua breakpoints
+class AppSpacing {
+  // Extra small
+  static const double xs2 = 2;
+  static const double xs4 = 4;
+  static const double xs6 = 6;
+  
+  // Small
+  static const double sm8 = 8;
+  static const double sm10 = 10;
+  static const double sm12 = 12;
+  
+  // Medium
+  static const double md14 = 14;
+  static const double md16 = 16;
+  static const double md18 = 18;
+  
+  // Large
+  static const double lg20 = 20;
+  static const double lg24 = 24;
+  static const double lg28 = 28;
+  
+  // Extra large
+  static const double xl32 = 32;
+  static const double xl36 = 36;
+  static const double xl40 = 40;
+  
+  // Responsive padding untuk berbagai screen sizes
+  static EdgeInsets paddingMobile = const EdgeInsets.all(12);
+  static EdgeInsets paddingTablet = const EdgeInsets.all(16);
+  static EdgeInsets paddingDesktop = const EdgeInsets.all(24);
+  
+  // Card spacing
+  static const double cardRadius = 16;
+  static const double buttonRadius = 10;
+  static const double inputRadius = 10;
+}
+
 class AppTheme {
   static ThemeData get theme => ThemeData(
     useMaterial3: true,
