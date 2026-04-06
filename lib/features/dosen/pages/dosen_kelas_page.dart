@@ -36,12 +36,17 @@ class _DosenKelasPageState extends State<DosenKelasPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontSize: isMobile ? 22 : 26
+          )),
           Text('${_kelas.length} kelas diampu semester ini',
             style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
           const SizedBox(height: 20),
@@ -52,9 +57,12 @@ class _DosenKelasPageState extends State<DosenKelasPage> {
                   ? const EmptyState(icon: Icons.class_outlined,
                       message: 'Belum ditugaskan ke kelas apapun')
                   : GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3, crossAxisSpacing: 16,
-                        mainAxisSpacing: 16, childAspectRatio: 1.5),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isMobile ? 1 : (screenWidth < 900 ? 2 : 3), // RESPONSIVE GRID
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16, 
+                        childAspectRatio: isMobile ? 2.0 : 1.5,
+                      ),
                       itemCount: _kelas.length,
                       itemBuilder: (_, i) => _KelasCard(kelas: _kelas[i])),
           ),

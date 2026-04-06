@@ -25,8 +25,9 @@ class DosenSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 800;
     return Container(
-      width: 210,
+      width: isMobile ? double.infinity : 220, // RESPONSIVE WIDTH
       color: _color,
       child: SafeArea(child: Column(children: [
         _buildHeader(),

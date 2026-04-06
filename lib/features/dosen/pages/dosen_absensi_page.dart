@@ -33,19 +33,29 @@ class _DosenAbsensiPageState extends State<DosenAbsensiPage> {
         onBack: () { setState(() => _selectedSesiId = null); _load(); });
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Absensi Akademik', style: Theme.of(context).textTheme.headlineMedium),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
-              onPressed: () => _showBukaSesi(context),
-              icon: const Icon(Icons.play_circle_rounded, size: 18),
-              label: const Text('Buka Sesi')),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Absensi Akademik', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: isMobile ? 22 : 26
+              )),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
+                onPressed: () => _showBukaSesi(context),
+                icon: const Icon(Icons.play_circle_rounded, size: 18),
+                label: const Text('Buka Sesi')),
+            ],
+          ),
           const SizedBox(height: 20),
           Expanded(child: _loading
             ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E6B8A)))
@@ -179,73 +189,80 @@ class _BukaSesiDialogState extends State<_BukaSesiDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 500;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Color(0xFF2E6B8A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-          child: Row(children: [
-            const Icon(Icons.play_circle_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            const Text('Buka Sesi Absensi', style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close, color: Colors.white)),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420), // MENCEGAH OVERFLOW
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF2E6B8A),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+              child: Row(children: [
+                const Icon(Icons.play_circle_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Buka Sesi Absensi', style: TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white)),
+              ]),
+            ),
+            Padding(
+              padding: EdgeInsets.all(isMobile ? 16 : 24),
+              child: Column(children: [
+                DropdownButtonFormField<String>(
+                  initialValue: _kelasId,
+                  decoration: const InputDecoration(labelText: 'Pilih Kelas'),
+                  items: _kelas.map((k) {
+                    final mk = k['mata_kuliah'] as Map? ?? {};
+                    return DropdownMenuItem(
+                      value: k['id'].toString(),
+                      child: Text('${mk['nama']} — Kelas ${k['nama_kelas']}'));
+                  }).toList(),
+                  onChanged: (v) => setState(() => _kelasId = v)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _geofenceId,
+                  decoration: const InputDecoration(labelText: 'Geofence Lokasi'),
+                  items: _geofences.map((g) => DropdownMenuItem(
+                    value: g['id'].toString(), child: Text(g['nama'] ?? '-'))).toList(),
+                  onChanged: (v) => setState(() => _geofenceId = v)),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Text('Durasi:', style: TextStyle(color: AppColors.textMid, fontSize: 13)),
+                  Expanded(
+                    child: Slider(
+                      value: _durasi.toDouble(), min: 5, max: 120, divisions: 23,
+                      activeColor: const Color(0xFF2E6B8A),
+                      label: '$_durasi menit',
+                      onChanged: (v) => setState(() => _durasi = v.round()))),
+                  Text('$_durasi mnt', style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                ]),
+              ]),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 0, isMobile ? 16 : 24, isMobile ? 16 : 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(onPressed: () => Navigator.pop(context),
+                  child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
+                  onPressed: _kelasId == null || _geofenceId == null ? null
+                    : () => widget.onBuka(_kelasId!, _durasi, _generateKode(), _geofenceId!),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                  label: const Text('Buka Sekarang')),
+              ]),
+            ),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(children: [
-            DropdownButtonFormField<String>(
-              initialValue: _kelasId,
-              decoration: const InputDecoration(labelText: 'Pilih Kelas'),
-              items: _kelas.map((k) {
-                final mk = k['mata_kuliah'] as Map? ?? {};
-                return DropdownMenuItem(
-                  value: k['id'].toString(),
-                  child: Text('${mk['nama']} — Kelas ${k['nama_kelas']}'));
-              }).toList(),
-              onChanged: (v) => setState(() => _kelasId = v)),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _geofenceId,
-              decoration: const InputDecoration(labelText: 'Geofence Lokasi'),
-              items: _geofences.map((g) => DropdownMenuItem(
-                value: g['id'].toString(), child: Text(g['nama'] ?? '-'))).toList(),
-              onChanged: (v) => setState(() => _geofenceId = v)),
-            const SizedBox(height: 12),
-            Row(children: [
-              const Text('Durasi:', style: TextStyle(color: AppColors.textMid, fontSize: 13)),
-              Expanded(
-                child: Slider(
-                  value: _durasi.toDouble(), min: 5, max: 120, divisions: 23,
-                  activeColor: const Color(0xFF2E6B8A),
-                  label: '$_durasi menit',
-                  onChanged: (v) => setState(() => _durasi = v.round()))),
-              Text('$_durasi mnt', style: const TextStyle(
-                fontWeight: FontWeight.w600, color: AppColors.textDark)),
-            ]),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: () => Navigator.pop(context),
-              child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
-              onPressed: _kelasId == null || _geofenceId == null ? null
-                : () => widget.onBuka(_kelasId!, _durasi, _generateKode(), _geofenceId!),
-              icon: const Icon(Icons.play_arrow_rounded, size: 18),
-              label: const Text('Buka Sekarang')),
-          ]),
-        ),
-      ])),
+      ),
     );
   }
 }

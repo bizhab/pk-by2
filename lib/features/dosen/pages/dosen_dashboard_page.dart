@@ -7,8 +7,6 @@ import 'dosen_kelas_page.dart';
 import 'dosen_absensi_page.dart';
 import 'dosen_materi_tugas_page.dart';
 
-/// Dosen Dashboard — hanya coordinator.
-/// Sub-halaman ada di files terpisah di /pages/ dan /widgets/.
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
   @override
@@ -33,17 +31,19 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
           .from('dosen').select('id, nip, bidang_studi')
           .eq('profile_id', uid).single();
       final sem = await SupabaseService.getActiveSemester();
-      setState(() {
-        _dosenData = {
-          ...?profile,
-          'dosen_id': dosenRaw['id'],
-          'nip'     : dosenRaw['nip'],
-        };
-        _activeSemester = sem;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dosenData = {
+            ...?profile,
+            'dosen_id': dosenRaw['id'],
+            'nip'     : dosenRaw['nip'],
+          };
+          _activeSemester = sem;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -54,16 +54,42 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
     }
+
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Row(children: [
-        DosenSidebar(
-          selectedIndex: _selectedIndex,
-          nama: _dosenData?['nama_lengkap'] ?? 'Dosen',
-          onSelect: (i) => setState(() => _selectedIndex = i),
-        ),
-        Expanded(child: _buildContent()),
-      ]),
+      // RESPONSIVE APPBAR: Hanya muncul di mobile
+      appBar: isMobile 
+          ? AppBar(
+              backgroundColor: const Color(0xFF2E6B8A),
+              foregroundColor: Colors.white,
+              title: const Text('Panel Dosen', style: TextStyle(fontSize: 16)),
+            ) 
+          : null,
+      // RESPONSIVE DRAWER: Pindahkan sidebar ke menu samping di HP
+      drawer: isMobile 
+          ? Drawer(
+              child: DosenSidebar(
+                selectedIndex: _selectedIndex,
+                nama: _dosenData?['nama_lengkap'] ?? 'Dosen',
+                onSelect: (i) {
+                  setState(() => _selectedIndex = i);
+                  Navigator.pop(context);
+                },
+              ),
+            )
+          : null,
+      body: isMobile
+          ? _buildContent()
+          : Row(children: [
+              DosenSidebar(
+                selectedIndex: _selectedIndex,
+                nama: _dosenData?['nama_lengkap'] ?? 'Dosen',
+                onSelect: (i) => setState(() => _selectedIndex = i),
+              ),
+              Expanded(child: _buildContent()),
+            ]),
     );
   }
 
@@ -71,8 +97,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     final dosenId = _dosenData?['dosen_id']?.toString() ?? '';
     final semId   = _activeSemester?['id']?.toString() ?? '';
     switch (_selectedIndex) {
-      case 0: return _DosenHomePage(
-          dosenData: _dosenData, activeSemester: _activeSemester);
+      case 0: return _DosenHomePage(dosenData: _dosenData, activeSemester: _activeSemester);
       case 1: return DosenKelasPage(dosenId: dosenId, semesterId: semId);
       case 2: return DosenAbsensiPage(dosenId: dosenId);
       case 3: return DosenMateriPage(dosenId: dosenId, semesterId: semId);
@@ -82,7 +107,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
   }
 }
 
-// ── Dosen Home (ringkas) ──────────────────────────────────
 class _DosenHomePage extends StatelessWidget {
   final Map<String, dynamic>? dosenData;
   final Map<String, dynamic>? activeSemester;
@@ -93,41 +117,55 @@ class _DosenHomePage extends StatelessWidget {
     final semLabel = activeSemester != null
         ? '${activeSemester!['nama']} ${activeSemester!['tahun_akademik']?['nama'] ?? ''}'
         : 'Tidak ada semester aktif';
+        
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Selamat Datang, ${dosenData?['nama_lengkap'] ?? 'Dosen'} 👋',
-          style: Theme.of(context).textTheme.displayLarge),
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+            fontSize: isMobile ? 22 : 28
+          )),
         const SizedBox(height: 4),
         Row(children: [
           const Icon(Icons.circle, color: AppColors.secondary, size: 8),
           const SizedBox(width: 6),
-          Text('Semester: $semLabel',
-            style: const TextStyle(color: AppColors.textMid, fontSize: 13)),
+          Expanded(child: Text('Semester: $semLabel',
+            style: const TextStyle(color: AppColors.textMid, fontSize: 13))),
         ]),
         const SizedBox(height: 28),
-        Row(children: [
-          Expanded(child: StatCard(
-            label: 'NIP',
-            value: dosenData?['nip'] ?? '-',
-            icon: Icons.badge_rounded,
-            gradient: const [Color(0xFF2E6B8A), Color(0xFF4A9BBF)])),
-          const SizedBox(width: 16),
-          Expanded(child: StatCard(
-            label: 'Semester Aktif',
-            value: activeSemester?['nama'] ?? '-',
-            icon: Icons.calendar_today_rounded,
-            gradient: AppColors.gradSantri)),
-        ]),
+        
+        // RESPONSIVE CARDS: Susun ke bawah di HP
+        if (isMobile) ...[
+          StatCard(
+            label: 'NIP', value: dosenData?['nip'] ?? '-', icon: Icons.badge_rounded,
+            gradient: const [Color(0xFF2E6B8A), Color(0xFF4A9BBF)]),
+          const SizedBox(height: 12),
+          StatCard(
+            label: 'Semester Aktif', value: activeSemester?['nama'] ?? '-',
+            icon: Icons.calendar_today_rounded, gradient: AppColors.gradSantri),
+        ] else 
+          Row(children: [
+            Expanded(child: StatCard(
+              label: 'NIP', value: dosenData?['nip'] ?? '-', icon: Icons.badge_rounded,
+              gradient: const [Color(0xFF2E6B8A), Color(0xFF4A9BBF)])),
+            const SizedBox(width: 16),
+            Expanded(child: StatCard(
+              label: 'Semester Aktif', value: activeSemester?['nama'] ?? '-',
+              icon: Icons.calendar_today_rounded, gradient: AppColors.gradSantri)),
+          ]),
+        
         const SizedBox(height: 28),
-
-        // Panduan cepat
         SectionHeader(title: 'Menu Utama'),
         const SizedBox(height: 12),
+        
+        // RESPONSIVE GRID MENU
         GridView.count(
-          crossAxisCount: 4, crossAxisSpacing: 12,
-          mainAxisSpacing: 12, childAspectRatio: 1.3,
+          crossAxisCount: isMobile ? 2 : (screenWidth < 900 ? 3 : 4),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12, childAspectRatio: isMobile ? 1.5 : 1.3,
           shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           children: const [
             _MenuCard(icon: Icons.class_rounded,       label: 'Kelas Saya',   color: Color(0xFF2E6B8A)),

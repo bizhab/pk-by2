@@ -44,20 +44,31 @@ class _DosenMateriPageState extends State<DosenMateriPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Materi Perkuliahan', style: Theme.of(context).textTheme.headlineMedium),
-            if (_selectedKelasId != null)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
-                onPressed: () => _uploadDialog(context),
-                icon: const Icon(Icons.upload_file_rounded, size: 18),
-                label: const Text('Upload Materi')),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Materi Perkuliahan', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: isMobile ? 22 : 26
+              )),
+              if (_selectedKelasId != null)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
+                  onPressed: () => _uploadDialog(context),
+                  icon: const Icon(Icons.upload_file_rounded, size: 18),
+                  label: const Text('Upload Materi')),
+            ],
+          ),
           const SizedBox(height: 14),
           _KelasFilterBar(
             kelas: _kelas,
@@ -74,9 +85,10 @@ class _DosenMateriPageState extends State<DosenMateriPage> {
                       ? EmptyState(icon: Icons.folder_open_outlined, message: 'Belum ada materi',
                           actionLabel: 'Upload', onAction: () => _uploadDialog(context))
                       : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3, crossAxisSpacing: 16,
-                            mainAxisSpacing: 16, childAspectRatio: 2.2),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isMobile ? 1 : (screenWidth < 900 ? 2 : 3), // RESPONSIVE GRID
+                            crossAxisSpacing: 16, mainAxisSpacing: 16, 
+                            childAspectRatio: isMobile ? 3.0 : 2.2),
                           itemCount: _materi.length,
                           itemBuilder: (_, i) {
                             final m = _materi[i];
@@ -187,20 +199,30 @@ class _DosenTugasPageState extends State<DosenTugasPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Manajemen Tugas', style: Theme.of(context).textTheme.headlineMedium),
-            if (_selectedKelasId != null)
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
-                onPressed: () => _buatDialog(context),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Buat Tugas')),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Manajemen Tugas', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: isMobile ? 22 : 26
+              )),
+              if (_selectedKelasId != null)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
+                  onPressed: () => _buatDialog(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Buat Tugas')),
+            ],
+          ),
           const SizedBox(height: 14),
           _KelasFilterBar(
             kelas: _kelas,
@@ -376,7 +398,10 @@ class _PengumpulanDialogState extends State<_PengumpulanDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 560, height: 460, child: Column(children: [
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 600), // CONSTRAINT UNTUK HP
+        child: Column(children: [
         Container(
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
