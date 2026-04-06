@@ -24,27 +24,42 @@ class _SantriDashboardPageState extends State<SantriDashboardPage> {
     final p = await SupabaseService.getMyProfile();
     if (p == null) return;
     final s = await SupabaseService.getSantriByProfileId(p['id']);
-    setState(() { _profile = p; _santri = s; _loading = false; });
+    if (mounted) setState(() { _profile = p; _santri = s; _loading = false; });
   }
-
-  static const _navItems = [
-    _SNI(icon: Icons.dashboard_rounded, label: 'Beranda'),
-    _SNI(icon: Icons.how_to_reg_rounded, label: 'Absensi'),
-    _SNI(icon: Icons.class_rounded, label: 'Kelas Saya'),
-    _SNI(icon: Icons.assignment_rounded, label: 'Tugas'),
-    _SNI(icon: Icons.bar_chart_rounded, label: 'Rapor Saya'),
-    _SNI(icon: Icons.person_rounded, label: 'Profil'),
-  ];
 
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+    
+    // RESPONSIVE LAYOUT DETECTION
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Row(children: [
-        _SantriSidebar(selectedIdx: _idx, profile: _profile, onSelect: (i) => setState(() => _idx = i)),
-        Expanded(child: _buildContent()),
-      ]),
+      // AppBar dan Drawer hanya muncul di Mobile
+      appBar: isMobile
+          ? AppBar(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              title: const Text('Portal Santri', style: TextStyle(fontSize: 16)),
+            )
+          : null,
+      drawer: isMobile
+          ? Drawer(
+              child: _SantriSidebar(
+                selectedIdx: _idx, profile: _profile, 
+                onSelect: (i) {
+                  setState(() => _idx = i);
+                  Navigator.pop(context); // Tutup drawer setelah diklik
+                }
+              ))
+          : null,
+      body: isMobile
+          ? _buildContent()
+          : Row(children: [
+              _SantriSidebar(selectedIdx: _idx, profile: _profile, onSelect: (i) => setState(() => _idx = i)),
+              Expanded(child: _buildContent()),
+            ]),
     );
   }
 
@@ -83,34 +98,46 @@ class _SantriHomeState extends State<_SantriHome> {
       SupabaseService.getSesiTerbukaForSantri(widget.santri['id']),
       SupabaseService.getAllPengumuman(),
     ]);
-    setState(() { _sesiTerbuka = results[0] as List<Map<String, dynamic>>; _pengumuman = (results[1] as List<Map<String, dynamic>>).take(5).toList(); _loading = false; });
+    if (mounted) setState(() { _sesiTerbuka = results[0] as List<Map<String, dynamic>>; _pengumuman = (results[1] as List<Map<String, dynamic>>).take(5).toList(); _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
     final nama = widget.profile['nama_lengkap'] ?? '';
     final nim = widget.santri['nim'] ?? '';
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return RefreshIndicator(
       onRefresh: _load,
       color: AppColors.primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28), // RESPONSIVE PADDING
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Assalamu\'alaikum 👋', style: Theme.of(context).textTheme.displayLarge),
-              Text('$nama • NIM: $nim', style: const TextStyle(color: AppColors.textLight, fontSize: 14)),
-            ]),
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(
+          
+          // RESPONSIVE HEADER: Gunakan Wrap agar box waktu tidak bertumpuk di HP
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 16,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Assalamu\'alaikum 👋', style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                  fontSize: isMobile ? 22 : 28
+                )),
+                Text('$nama • NIM: $nim', style: const TextStyle(color: AppColors.textLight, fontSize: 14)),
+              ]),
+              Container(
+                padding: const EdgeInsets.all(12), decoration: BoxDecoration(
                 color: AppColors.cardBg, borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.divider)),
-              child: Column(children: [
-                Text(_timeNow(), style: const TextStyle(fontWeight: FontWeight.w800,
-                    fontSize: 18, color: AppColors.textDark)),
-                Text(_dateToday(), style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
-              ])),
-          ]),
+                child: Column(children: [
+                  Text(_timeNow(), style: const TextStyle(fontWeight: FontWeight.w800,
+                      fontSize: 18, color: AppColors.textDark)),
+                  Text(_dateToday(), style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
+                ])),
+            ]
+          ),
           const SizedBox(height: 24),
 
           // Sesi terbuka
@@ -128,23 +155,28 @@ class _SantriHomeState extends State<_SantriHome> {
                   gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary]),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.radio_button_checked, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${mk['nama']} — Kelas ${kelas['nama_kelas']}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                    Text('Kode: ${s['kode_absen']}',
-                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
-                  ])),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
-                    onPressed: () => _showAbsenDialog(context, s),
-                    child: const Text('Hadir', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                ]),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12, runSpacing: 12,
+                  children: [
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.radio_button_checked, color: Colors.white, size: 20),
+                      const SizedBox(width: 12),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${mk['nama']} — Kelas ${kelas['nama_kelas']}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                        Text('Kode: ${s['kode_absen']}',
+                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                      ]),
+                    ]),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+                      onPressed: () => _showAbsenDialog(context, s),
+                      child: const Text('Hadir', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
               );
             }),
           ],
@@ -192,42 +224,45 @@ class _SantriHomeState extends State<_SantriHome> {
     String? selectedStatus;
     showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Konfirmasi Kehadiran', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textDark)),
-        const SizedBox(height: 20),
-        Wrap(spacing: 10, children: ['hadir','izin','sakit','terlambat'].map((s) =>
-            GestureDetector(
-              onTap: () => setSt(() => selectedStatus = s),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                decoration: BoxDecoration(
-                  color: selectedStatus == s ? _statusColor(s) : _statusColor(s).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _statusColor(s).withOpacity(0.4)),
+      child: ConstrainedBox( // CONSTRAINT UNTUK DIALOG
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Konfirmasi Kehadiran', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textDark)),
+          const SizedBox(height: 20),
+          Wrap(spacing: 10, runSpacing: 10, children: ['hadir','izin','sakit','terlambat'].map((s) =>
+              GestureDetector(
+                onTap: () => setSt(() => selectedStatus = s),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: selectedStatus == s ? _statusColor(s) : _statusColor(s).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _statusColor(s).withOpacity(0.4)),
+                  ),
+                  child: Text(s.toUpperCase(), style: TextStyle(
+                      color: selectedStatus == s ? Colors.white : _statusColor(s),
+                      fontWeight: FontWeight.w700, fontSize: 13)),
                 ),
-                child: Text(s.toUpperCase(), style: TextStyle(
-                    color: selectedStatus == s ? Colors.white : _statusColor(s),
-                    fontWeight: FontWeight.w700, fontSize: 13)),
-              ),
-            )).toList()),
-        const SizedBox(height: 24),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: selectedStatus == null ? null : () async {
-              await SupabaseService.absenAkademik(
-                sesiId: sesi['id'], santriId: widget.santri['id'],
-                status: selectedStatus!, lat: null, lng: null,
-              );
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) showSuccess(context, 'Absensi berhasil dicatat');
-              _load();
-            },
-            child: const Text('Konfirmasi'),
-          ),
-        ]),
-      ])),
+              )).toList()),
+          const SizedBox(height: 24),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: selectedStatus == null ? null : () async {
+                await SupabaseService.absenAkademik(
+                  sesiId: sesi['id'], santriId: widget.santri['id'],
+                  status: selectedStatus!, lat: null, lng: null,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) showSuccess(context, 'Absensi berhasil dicatat');
+                _load();
+              },
+              child: const Text('Konfirmasi'),
+            ),
+          ]),
+        ])),
+      ),
     )));
   }
 
@@ -259,16 +294,20 @@ class _AbsensiSantriPageState extends State<_AbsensiSantriPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await SupabaseService.getAbsensiAkademiSantri(widget.santriId);
-    setState(() { _history = data; _loading = false; });
+    if (mounted) setState(() { _history = data; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(backgroundColor: AppColors.background, body: Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Riwayat Absensi', style: Theme.of(context).textTheme.headlineMedium),
-        Text('30 sesi terakhir', style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
+        Text('Riwayat Absensi', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: isMobile ? 22 : 26
+        )),
+        const Text('30 sesi terakhir', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
         const SizedBox(height: 20),
         Expanded(child: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -292,10 +331,12 @@ class _AbsensiSantriPageState extends State<_AbsensiSantriPage> {
                     default: statusColor = AppColors.error;
                   }
                   return ListTile(
+                    contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(backgroundColor: statusColor.withOpacity(0.12),
                       child: Icon(Icons.class_rounded, color: statusColor, size: 18)),
                     title: Text('${mk['nama']} — Kelas ${kelas['nama_kelas']}',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textDark)),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textDark),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(sesi['tanggal']?.toString() ?? '-',
                         style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
                     trailing: StatusBadge(label: status.toUpperCase(), color: statusColor),
@@ -323,15 +364,20 @@ class _KelasSantriPageState extends State<_KelasSantriPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await SupabaseService.getKelasForSantri(widget.santriId);
-    setState(() { _kelas = data; _loading = false; });
+    if (mounted) setState(() { _kelas = data; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(backgroundColor: AppColors.background, body: Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium),
+        Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: isMobile ? 22 : 26
+        )),
         Text('${_kelas.length} kelas terdaftar', style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
         const SizedBox(height: 20),
         Expanded(child: _loading
@@ -339,8 +385,11 @@ class _KelasSantriPageState extends State<_KelasSantriPage> {
           : _kelas.isEmpty
             ? const EmptyState(icon: Icons.class_outlined, message: 'Belum terdaftar di kelas manapun')
             : GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 1.5),
+                // RESPONSIVE GRID
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isMobile ? 1 : (screenWidth < 900 ? 2 : 3), 
+                    crossAxisSpacing: 16, mainAxisSpacing: 16, 
+                    childAspectRatio: isMobile ? 2.5 : 1.5),
                 itemCount: _kelas.length,
                 itemBuilder: (_, i) {
                   final ks = _kelas[i];
@@ -396,15 +445,19 @@ class _TugasSantriPageState extends State<_TugasSantriPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await SupabaseService.getTugasForSantri(widget.santriId);
-    setState(() { _tugas = data; _loading = false; });
+    if (mounted) setState(() { _tugas = data; _loading = false; });
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(backgroundColor: AppColors.background, body: Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Daftar Tugas', style: Theme.of(context).textTheme.headlineMedium),
+        Text('Daftar Tugas', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: isMobile ? 22 : 26
+        )),
         const SizedBox(height: 20),
         Expanded(child: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -420,33 +473,38 @@ class _TugasSantriPageState extends State<_TugasSantriPage> {
                   final sudahKumpul = (t['pengumpulan_tugas'] as List?)?.isNotEmpty ?? false;
                   final deadline = DateTime.tryParse(t['deadline'] ?? '');
                   final isExpired = deadline != null && deadline.isBefore(DateTime.now());
-                  return AppCard(child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: (sudahKumpul ? AppColors.primary : isExpired ? AppColors.error : Colors.orange).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(sudahKumpul ? Icons.check_circle_rounded : Icons.assignment_rounded,
-                          color: sudahKumpul ? AppColors.primary : isExpired ? AppColors.error : Colors.orange, size: 22)),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(t['judul'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w700,
-                          fontSize: 14, color: AppColors.textDark)),
-                      Text('${mk['nama']} — Kelas ${kelas['nama_kelas']}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMid)),
-                      Text('Deadline: ${t['deadline']?.toString().substring(0,10) ?? '-'}',
-                          style: TextStyle(fontSize: 11,
-                              color: isExpired ? AppColors.error : AppColors.textLight)),
-                    ])),
-                    if (!sudahKumpul && !isExpired)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                        onPressed: () => _showKumpulDialog(context, t),
-                        child: const Text('Kumpulkan', style: TextStyle(fontSize: 12)),
-                      )
-                    else if (sudahKumpul)
-                      const StatusBadge(label: 'TERKUMPUL', color: AppColors.primary),
+                  return AppCard(child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12, runSpacing: 12,
+                    children: [
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: (sudahKumpul ? AppColors.primary : isExpired ? AppColors.error : Colors.orange).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: Icon(sudahKumpul ? Icons.check_circle_rounded : Icons.assignment_rounded,
+                              color: sudahKumpul ? AppColors.primary : isExpired ? AppColors.error : Colors.orange, size: 22)),
+                        const SizedBox(width: 14),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(t['judul'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w700,
+                              fontSize: 14, color: AppColors.textDark)),
+                          Text('${mk['nama']} — Kelas ${kelas['nama_kelas']}',
+                              style: const TextStyle(fontSize: 12, color: AppColors.textMid)),
+                          Text('Deadline: ${t['deadline']?.toString().substring(0,10) ?? '-'}',
+                              style: TextStyle(fontSize: 11,
+                                  color: isExpired ? AppColors.error : AppColors.textLight)),
+                        ]),
+                      ]),
+                      if (!sudahKumpul && !isExpired)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                          onPressed: () => _showKumpulDialog(context, t),
+                          child: const Text('Kumpulkan', style: TextStyle(fontSize: 12)),
+                        )
+                      else if (sudahKumpul)
+                        const StatusBadge(label: 'TERKUMPUL', color: AppColors.primary),
                   ]));
                 })),
       ]),
@@ -458,34 +516,37 @@ class _TugasSantriPageState extends State<_TugasSantriPage> {
     final catatan = TextEditingController();
     showDialog(context: ctx, builder: (dCtx) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('Kumpulkan: ${tugas['judul']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-        const SizedBox(height: 16),
-        TextField(controller: fileUrl, decoration: const InputDecoration(
-            labelText: 'URL File Jawaban (Google Drive / etc.)',
-            prefixIcon: Icon(Icons.link_rounded, color: AppColors.textLight, size: 18))),
-        const SizedBox(height: 12),
-        TextField(controller: catatan, maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Catatan (opsional)', alignLabelWithHint: true)),
-        const SizedBox(height: 20),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Batal')),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () async {
-              if (fileUrl.text.isEmpty) return;
-              await SupabaseService.kumpulkanTugas(
-                tugasId: tugas['id'], santriId: widget.santriId,
-                fileUrl: fileUrl.text, catatan: catatan.text.isNotEmpty ? catatan.text : null,
-              );
-              if (dCtx.mounted) Navigator.pop(dCtx);
-              if (mounted) showSuccess(ctx, 'Tugas berhasil dikumpulkan!');
-              _load();
-            },
-            child: const Text('Kumpulkan'),
-          ),
-        ]),
-      ])),
+      child: ConstrainedBox( // CONSTRAINT UNTUK DIALOG
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Kumpulkan: ${tugas['judul']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const SizedBox(height: 16),
+          TextField(controller: fileUrl, decoration: const InputDecoration(
+              labelText: 'URL File Jawaban (Google Drive / etc.)',
+              prefixIcon: Icon(Icons.link_rounded, color: AppColors.textLight, size: 18))),
+          const SizedBox(height: 12),
+          TextField(controller: catatan, maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Catatan (opsional)', alignLabelWithHint: true)),
+          const SizedBox(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Batal')),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () async {
+                if (fileUrl.text.isEmpty) return;
+                await SupabaseService.kumpulkanTugas(
+                  tugasId: tugas['id'], santriId: widget.santriId,
+                  fileUrl: fileUrl.text, catatan: catatan.text.isNotEmpty ? catatan.text : null,
+                );
+                if (dCtx.mounted) Navigator.pop(dCtx);
+                if (mounted) showSuccess(ctx, 'Tugas berhasil dikumpulkan!');
+                _load();
+              },
+              child: const Text('Kumpulkan'),
+            ),
+          ]),
+        ])),
+      ),
     ));
   }
 }
@@ -508,9 +569,9 @@ class _RaporSantriPageState extends State<_RaporSantriPage> {
     setState(() => _loading = true);
     if (widget.santriId.isNotEmpty) {
       final data = await SupabaseService.getRaporSantri(widget.santriId);
-      setState(() { _rapor = data; _loading = false; });
+      if (mounted) setState(() { _rapor = data; _loading = false; });
     } else {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -520,17 +581,24 @@ class _RaporSantriPageState extends State<_RaporSantriPage> {
     final spList = (_rapor?['sp_aktif'] as List?) ?? [];
     final ibadah = (_rapor?['absensi_ibadah'] as List?) ?? [];
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(backgroundColor: AppColors.background, body: _loading
       ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-      : SingleChildScrollView(padding: const EdgeInsets.all(28), child: Column(
+      : SingleChildScrollView(padding: EdgeInsets.all(isMobile ? 16 : 28), child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Rapor Saya', style: Theme.of(context).textTheme.headlineMedium),
+        Text('Rapor Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: isMobile ? 22 : 26
+        )),
         const SizedBox(height: 20),
 
-        // Summary cards
+        // Summary cards RESPONSIVE
         GridView.count(
-          crossAxisCount: 3, crossAxisSpacing: 16, mainAxisSpacing: 16,
-          childAspectRatio: 2.0, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: isMobile ? 1 : 3, // RESPONSIVE GRID
+          crossAxisSpacing: 16, mainAxisSpacing: 16,
+          childAspectRatio: isMobile ? 3.0 : 2.0, 
+          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
           children: [
             StatCard(label: 'Kelas Diikuti', icon: Icons.class_rounded,
                 value: '${akademik.length}', gradient: AppColors.gradSantri),
@@ -548,41 +616,51 @@ class _RaporSantriPageState extends State<_RaporSantriPage> {
         const SizedBox(height: 12),
         if (akademik.isEmpty)
           const EmptyState(icon: Icons.class_outlined, message: 'Belum ada data kehadiran')
-        else AppCard(padding: EdgeInsets.zero, child: Column(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(children: const [
-              Expanded(flex: 3, child: Text('MATA KULIAH', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight, letterSpacing: 0.5))),
-              Expanded(child: Text('HADIR', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
-              Expanded(child: Text('ALPHA', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
-              Expanded(child: Text('IZIN/SAKIT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
-              Expanded(child: Text('%', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
-            ])),
-          const Divider(height: 1, color: AppColors.divider),
-          ...akademik.map((a) {
-            final pct = (a['persentase_hadir'] ?? 0.0) as num;
-            final color = pct >= 75 ? AppColors.primary : pct >= 50 ? Colors.orange : AppColors.error;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(children: [
-                Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(a['nama_matkul'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('Kelas ${a['nama_kelas']}', style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
-                ])),
-                Expanded(child: Text('${a['hadir'] ?? 0}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
-                Expanded(child: Text('${a['alpha'] ?? 0}', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700))),
-                Expanded(child: Text('${(a['izin'] ?? 0) + (a['sakit'] ?? 0)}', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w700))),
-                Expanded(child: Row(children: [
-                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(value: pct / 100,
-                        backgroundColor: color.withOpacity(0.15),
-                        valueColor: AlwaysStoppedAnimation(color), minHeight: 6))),
-                  const SizedBox(width: 6),
-                  Text('${pct.toStringAsFixed(0)}%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
-                ])),
-              ]),
-            );
-          }),
-        ])),
+        else 
+          AppCard(padding: EdgeInsets.zero, child: 
+            // MENCEGAH OVERFLOW DI HP DENGAN HORIZONTAL SCROLL
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: isMobile ? 600 : 0), // Paksa tabel minimum 600px lebar
+                child: Column(children: [
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(children: const [
+                      Expanded(flex: 3, child: Text('MATA KULIAH', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight, letterSpacing: 0.5))),
+                      Expanded(child: Text('HADIR', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
+                      Expanded(child: Text('ALPHA', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
+                      Expanded(child: Text('IZIN/SAKIT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
+                      Expanded(child: Text('%', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppColors.textLight))),
+                    ])),
+                  const Divider(height: 1, color: AppColors.divider),
+                  ...akademik.map((a) {
+                    final pct = (a['persentase_hadir'] ?? 0.0) as num;
+                    final color = pct >= 75 ? AppColors.primary : pct >= 50 ? Colors.orange : AppColors.error;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(children: [
+                        Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(a['nama_matkul'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text('Kelas ${a['nama_kelas']}', style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
+                        ])),
+                        Expanded(child: Text('${a['hadir'] ?? 0}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+                        Expanded(child: Text('${a['alpha'] ?? 0}', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700))),
+                        Expanded(child: Text('${(a['izin'] ?? 0) + (a['sakit'] ?? 0)}', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w700))),
+                        Expanded(child: Row(children: [
+                          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(value: pct / 100,
+                                backgroundColor: color.withOpacity(0.15),
+                                valueColor: AlwaysStoppedAnimation(color), minHeight: 6))),
+                          const SizedBox(width: 6),
+                          Text('${pct.toStringAsFixed(0)}%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+                        ])),
+                      ]),
+                    );
+                  }),
+                ]),
+              ),
+            )
+          ),
         const SizedBox(height: 24),
 
         // SP
@@ -627,61 +705,75 @@ class _ProfilSantriPageState extends State<_ProfilSantriPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
+    // Komponen Avatar Kiri
+    final avatarCard = AppCard(child: Column(children: [
+      CircleAvatar(radius: 48,
+        backgroundColor: AppColors.primary.withOpacity(0.12),
+        child: Text((widget.profile['nama_lengkap'] ?? 'S')[0].toUpperCase(),
+            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 36))),
+      const SizedBox(height: 16),
+      Text(widget.profile['nama_lengkap'] ?? '-',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textDark)),
+      const SizedBox(height: 4),
+      Text('NIM: ${widget.santri['nim'] ?? '-'}',
+          style: const TextStyle(fontSize: 14, color: AppColors.textMid)),
+      const SizedBox(height: 8),
+      StatusBadge(label: (widget.santri['status'] ?? 'aktif').toUpperCase(), color: AppColors.primary),
+      const SizedBox(height: 12),
+      Text('Angkatan ${widget.santri['angkatan'] ?? '-'}',
+          style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
+    ]));
+
+    // Komponen Form Edit Kanan
+    final formCard = AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Edit Profil', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
+      const SizedBox(height: 4),
+      const Text('NIM tidak dapat diubah', style: TextStyle(fontSize: 12, color: AppColors.textLight)),
+      const SizedBox(height: 16),
+      TextField(controller: _nama, decoration: const InputDecoration(
+          labelText: 'Nama Lengkap',
+          prefixIcon: Icon(Icons.person_rounded, color: AppColors.textLight, size: 18))),
+      const SizedBox(height: 12),
+      TextField(controller: _email, enabled: false,
+          decoration: const InputDecoration(labelText: 'Email (tidak dapat diubah)',
+              prefixIcon: Icon(Icons.email_rounded, color: AppColors.textLight, size: 18))),
+      const SizedBox(height: 12),
+      TextField(controller: _noHp, keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(labelText: 'No. HP',
+              prefixIcon: Icon(Icons.phone_rounded, color: AppColors.textLight, size: 18))),
+      const SizedBox(height: 12),
+      TextField(controller: _alamat, maxLines: 2,
+          decoration: const InputDecoration(labelText: 'Alamat', alignLabelWithHint: true,
+              prefixIcon: Icon(Icons.home_rounded, color: AppColors.textLight, size: 18))),
+      const SizedBox(height: 20),
+      SizedBox(width: double.infinity, child: ElevatedButton(
+        onPressed: _loading ? null : _save,
+        child: _loading
+          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text('Simpan Perubahan'),
+      )),
+    ]));
+
     return Scaffold(backgroundColor: AppColors.background, body: SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Profil Saya', style: Theme.of(context).textTheme.headlineMedium),
+        Text('Profil Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: isMobile ? 22 : 26
+        )),
         const SizedBox(height: 24),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Avatar
-          Expanded(flex: 2, child: AppCard(child: Column(children: [
-            CircleAvatar(radius: 48,
-              backgroundColor: AppColors.primary.withOpacity(0.12),
-              child: Text((widget.profile['nama_lengkap'] ?? 'S')[0].toUpperCase(),
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 36))),
-            const SizedBox(height: 16),
-            Text(widget.profile['nama_lengkap'] ?? '-',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textDark)),
-            const SizedBox(height: 4),
-            Text('NIM: ${widget.santri['nim'] ?? '-'}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textMid)),
-            const SizedBox(height: 8),
-            StatusBadge(label: (widget.santri['status'] ?? 'aktif').toUpperCase(), color: AppColors.primary),
-            const SizedBox(height: 12),
-            Text('Angkatan ${widget.santri['angkatan'] ?? '-'}',
-                style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
-          ]))),
-          const SizedBox(width: 20),
-          // Form edit
-          Expanded(flex: 4, child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Edit Profil', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textDark)),
-            const SizedBox(height: 4),
-            const Text('NIM tidak dapat diubah', style: TextStyle(fontSize: 12, color: AppColors.textLight)),
-            const SizedBox(height: 16),
-            TextField(controller: _nama, decoration: const InputDecoration(
-                labelText: 'Nama Lengkap',
-                prefixIcon: Icon(Icons.person_rounded, color: AppColors.textLight, size: 18))),
-            const SizedBox(height: 12),
-            TextField(controller: _email, enabled: false,
-                decoration: const InputDecoration(labelText: 'Email (tidak dapat diubah)',
-                    prefixIcon: Icon(Icons.email_rounded, color: AppColors.textLight, size: 18))),
-            const SizedBox(height: 12),
-            TextField(controller: _noHp, keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'No. HP',
-                    prefixIcon: Icon(Icons.phone_rounded, color: AppColors.textLight, size: 18))),
-            const SizedBox(height: 12),
-            TextField(controller: _alamat, maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Alamat', alignLabelWithHint: true,
-                    prefixIcon: Icon(Icons.home_rounded, color: AppColors.textLight, size: 18))),
-            const SizedBox(height: 20),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: _loading ? null : _save,
-              child: _loading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Simpan Perubahan'),
-            )),
-          ]))),
-        ]),
+        // RESPONSIVE LAYOUT PROFIL
+        if (isMobile) ...[
+          avatarCard,
+          const SizedBox(height: 20),
+          formCard,
+        ] else
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(flex: 2, child: avatarCard),
+            const SizedBox(width: 20),
+            Expanded(flex: 4, child: formCard),
+          ]),
       ]),
     ));
   }
@@ -697,7 +789,7 @@ class _ProfilSantriPageState extends State<_ProfilSantriPage> {
     } catch (e) {
       if (mounted) showError(context, 'Error: $e');
     }
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
   }
 }
 
@@ -721,8 +813,11 @@ class _SantriSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nama = profile?['nama_lengkap'] ?? '';
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
     return Container(
-      width: 200, color: AppColors.primary,
+      width: isMobile ? double.infinity : 220, // RESPONSIVE WIDTH
+      color: AppColors.primary,
       child: SafeArea(child: Column(children: [
         Padding(padding: const EdgeInsets.all(18), child: Column(children: [
           Container(padding: const EdgeInsets.all(10),
