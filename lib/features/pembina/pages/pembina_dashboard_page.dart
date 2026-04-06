@@ -7,8 +7,6 @@ import 'pembina_home_page.dart';
 import 'absensi_ibadah_page.dart';
 import 'monitoring_sp_page.dart';
 
-/// Pembina Dashboard — hanya coordinator.
-/// Sub-halaman ada di files terpisah di /pages/.
 class PembinaDashboardPage extends StatefulWidget {
   const PembinaDashboardPage({super.key});
   @override
@@ -29,7 +27,7 @@ class _PembinaDashboardPageState extends State<PembinaDashboardPage> {
     setState(() => _loading = true);
     try {
       final profile = await SupabaseService.getMyProfile();
-      _pembinaName  = profile?['nama_lengkap'] ?? 'Pembina';
+      if (mounted) setState(() => _pembinaName = profile?['nama_lengkap'] ?? 'Pembina');
 
       final pembina = await SupabaseService.client
           .from('pembina').select('id, kode_pembina')
@@ -46,10 +44,12 @@ class _PembinaDashboardPageState extends State<PembinaDashboardPage> {
             .eq('pembina_id', pembina['id'])
             .eq('semester_id', sem['id'])
             .maybeSingle();
-        setState(() { _pembinaData = pembina; _kelompok = kelompok; });
+        if (mounted) setState(() { _pembinaData = pembina; _kelompok = kelompok; });
       }
-      setState(() => _loading = false);
-    } catch (_) { setState(() => _loading = false); }
+      if (mounted) setState(() => _loading = false);
+    } catch (_) { 
+      if (mounted) setState(() => _loading = false); 
+    }
   }
 
   List<Map<String, dynamic>> get _santriList =>
@@ -58,31 +58,52 @@ class _PembinaDashboardPageState extends State<PembinaDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Deteksi Layar Responsif
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Row(children: [
-              PembinaSidebar(
+      // AppBar & Drawer hanya muncul di HP
+      appBar: isMobile
+          ? AppBar(
+              backgroundColor: const Color(0xFF8A5E2E),
+              foregroundColor: Colors.white,
+              title: const Text('Portal Pembina', style: TextStyle(fontSize: 16)),
+            )
+          : null,
+      drawer: isMobile
+          ? Drawer(
+              child: PembinaSidebar(
                 selectedIndex: _selectedIndex,
                 pembinaName: _pembinaName,
-                onSelect: (i) => setState(() => _selectedIndex = i),
+                onSelect: (i) {
+                  setState(() => _selectedIndex = i);
+                  Navigator.pop(context); // Tutup drawer setelah klik
+                },
               ),
-              Expanded(child: _buildContent()),
-            ]),
+            )
+          : null,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : isMobile 
+              ? _buildContent() // Jika mobile, sidebar disembunyikan
+              : Row(children: [ // Jika desktop, sidebar disamping
+                  PembinaSidebar(
+                    selectedIndex: _selectedIndex,
+                    pembinaName: _pembinaName,
+                    onSelect: (i) => setState(() => _selectedIndex = i),
+                  ),
+                  Expanded(child: _buildContent()),
+                ]),
     );
   }
 
   Widget _buildContent() {
     switch (_selectedIndex) {
-      case 0: return PembinaHomePage(
-          kelompok: _kelompok, onRefresh: _loadData);
-      case 1: return AbsensiIbadahPage(
-          kelompokId: _kelompok?['id'], santriList: _santriList);
-      case 2: return MonitoringPage(
-          kelompokId: _kelompok?['id'], santriList: _santriList);
-      case 3: return SPPage(
-          pembinaId: _pembinaData?['id'], santriList: _santriList);
+      case 0: return PembinaHomePage(kelompok: _kelompok, onRefresh: _loadData);
+      case 1: return AbsensiIbadahPage(kelompokId: _kelompok?['id'], santriList: _santriList);
+      case 2: return MonitoringPage(kelompokId: _kelompok?['id'], santriList: _santriList);
+      case 3: return SPPage(pembinaId: _pembinaData?['id'], santriList: _santriList);
       case 4: return _LaporanPage(kelompokId: _kelompok?['id']);
       default: return const SizedBox.shrink();
     }
@@ -103,71 +124,79 @@ class _LaporanPageState extends State<_LaporanPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Padding(
-        padding: const EdgeInsets.all(28),
+      body: SingleChildScrollView( // Hindari overflow
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Laporan Ibadah', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Laporan Ibadah', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontSize: isMobile ? 22 : 26
+          )),
           const SizedBox(height: 4),
           const Text('Cetak rekap absensi sholat dalam format PDF.',
             style: TextStyle(color: AppColors.textLight, fontSize: 13)),
           const SizedBox(height: 24),
-          SizedBox(width: 360, child: Column(children: [
-            _DateBtn(label: _dari == null ? 'Pilih Tanggal Mulai'
-              : '${_dari!.day}/${_dari!.month}/${_dari!.year}',
-              icon: Icons.calendar_today_rounded,
-              onTap: () async {
-                final d = await showDatePicker(context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2020), lastDate: DateTime(2030));
-                if (d != null) setState(() => _dari = d);
-              }),
-            const SizedBox(height: 12),
-            _DateBtn(label: _sampai == null ? 'Pilih Tanggal Akhir'
-              : '${_sampai!.day}/${_sampai!.month}/${_sampai!.year}',
-              icon: Icons.calendar_month_rounded,
-              onTap: () async {
-                final d = await showDatePicker(context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2020), lastDate: DateTime(2030));
-                if (d != null) setState(() => _sampai = d);
-              }),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _kategori,
-              decoration: const InputDecoration(labelText: 'Kategori'),
-              items: const [
-                DropdownMenuItem(value: 'semua',  child: Text('Semua')),
-                DropdownMenuItem(value: 'wajib',  child: Text('Wajib')),
-                DropdownMenuItem(value: 'sunnah', child: Text('Sunnah')),
-              ],
-              onChanged: (v) => setState(() => _kategori = v!),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(width: double.infinity, child: ElevatedButton.icon(
-              onPressed: _generating ? null : () async {
-                if (_dari == null || _sampai == null) {
-                  showError(context, 'Pilih rentang tanggal');
-                  return;
-                }
-                setState(() => _generating = true);
-                await Future.delayed(const Duration(seconds: 1));
-                setState(() => _generating = false);
-                if (mounted) {
-                  showSuccess(context,
-                  'Tambahkan package "pdf" & "printing" untuk cetak PDF.');
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8A5E2E),
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-              icon: _generating
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(_generating ? 'Menyiapkan...' : 'Cetak PDF'))),
-          ])),
+          
+          // ConstrainedBox agar form form tidak terlalu lebar di PC, tapi pas di HP
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400), 
+            child: Column(children: [
+              _DateBtn(label: _dari == null ? 'Pilih Tanggal Mulai'
+                : '${_dari!.day}/${_dari!.month}/${_dari!.year}',
+                icon: Icons.calendar_today_rounded,
+                onTap: () async {
+                  final d = await showDatePicker(context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020), lastDate: DateTime(2030));
+                  if (d != null) setState(() => _dari = d);
+                }),
+              const SizedBox(height: 12),
+              _DateBtn(label: _sampai == null ? 'Pilih Tanggal Akhir'
+                : '${_sampai!.day}/${_sampai!.month}/${_sampai!.year}',
+                icon: Icons.calendar_month_rounded,
+                onTap: () async {
+                  final d = await showDatePicker(context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020), lastDate: DateTime(2030));
+                  if (d != null) setState(() => _sampai = d);
+                }),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _kategori,
+                decoration: const InputDecoration(labelText: 'Kategori'),
+                items: const [
+                  DropdownMenuItem(value: 'semua',  child: Text('Semua')),
+                  DropdownMenuItem(value: 'wajib',  child: Text('Wajib')),
+                  DropdownMenuItem(value: 'sunnah', child: Text('Sunnah')),
+                ],
+                onChanged: (v) => setState(() => _kategori = v!),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                onPressed: _generating ? null : () async {
+                  if (_dari == null || _sampai == null) {
+                    showError(context, 'Pilih rentang tanggal');
+                    return;
+                  }
+                  setState(() => _generating = true);
+                  await Future.delayed(const Duration(seconds: 1));
+                  setState(() => _generating = false);
+                  if (mounted) {
+                    showSuccess(context, 'Tambahkan package "pdf" & "printing" untuk cetak PDF.');
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8A5E2E),
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+                icon: _generating
+                    ? const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.picture_as_pdf_rounded),
+                label: Text(_generating ? 'Menyiapkan...' : 'Cetak PDF'))),
+            ]),
+          ),
         ]),
       ),
     );

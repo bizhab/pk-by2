@@ -19,18 +19,20 @@ class PembinaHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
       color: const Color(0xFF8A5E2E),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _buildHeader(context),
+          _buildHeader(context, isMobile),
           const SizedBox(height: 24),
-          _buildStatCards(),
+          _buildStatCards(context, isMobile),
           const SizedBox(height: 28),
-          _buildSantriSection(),
+          _buildSantriSection(context, isMobile),
           const SizedBox(height: 28),
           SectionHeader(title: 'Jadwal Sholat Hari Ini'),
           const SizedBox(height: 12),
@@ -40,60 +42,75 @@ class PembinaHomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isMobile) {
     final now    = DateTime.now();
     final days   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
     final months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("Assalamu'alaikum 🌙",
-            style: Theme.of(context).textTheme.displayLarge),
-        const SizedBox(height: 4),
-        Text(kelompok != null
-          ? 'Kelompok: ${kelompok!['nama_kelompok'] ?? '-'}'
-          : 'Belum ada kelompok aktif',
-          style: const TextStyle(color: AppColors.textMid, fontSize: 13)),
-      ]),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider)),
-        child: Row(children: [
-          const Icon(Icons.calendar_today_rounded,
-              color: Color(0xFF8A5E2E), size: 15),
-          const SizedBox(width: 8),
-          Text(
-            '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}',
-            style: const TextStyle(color: AppColors.textDark,
-                fontWeight: FontWeight.w600, fontSize: 12)),
+    
+    // RESPONSIVE HEADER: Gunakan Wrap agar tidak bertabrakan
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16, runSpacing: 16,
+      children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text("Assalamu'alaikum 🌙",
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontSize: isMobile ? 22 : 28
+              )),
+          const SizedBox(height: 4),
+          Text(kelompok != null
+            ? 'Kelompok: ${kelompok!['nama_kelompok'] ?? '-'}'
+            : 'Belum ada kelompok aktif',
+            style: const TextStyle(color: AppColors.textMid, fontSize: 13)),
         ]),
-      ),
-    ]);
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.calendar_today_rounded,
+                color: Color(0xFF8A5E2E), size: 15),
+            const SizedBox(width: 8),
+            Text(
+              '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}',
+              style: const TextStyle(color: AppColors.textDark,
+                  fontWeight: FontWeight.w600, fontSize: 12)),
+          ]),
+        ),
+      ]
+    );
   }
 
-  Widget _buildStatCards() {
+  Widget _buildStatCards(BuildContext context, bool isMobile) {
     return GridView.count(
-      crossAxisCount: 3, crossAxisSpacing: 16, mainAxisSpacing: 16,
-      childAspectRatio: 1.6, shrinkWrap: true,
+      crossAxisCount: isMobile ? 1 : 3, // RESPONSIVE GRID COLUMNS
+      crossAxisSpacing: 16, mainAxisSpacing: 16,
+      childAspectRatio: isMobile ? 2.8 : 1.6, // RESPONSIVE ASPECT RATIO
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
         StatCard(label: 'Santri Binaan', value: '${_santriList.length}/10',
           icon: Icons.group_rounded,
-          gradient: [const Color(0xFF8A5E2E), const Color(0xFFBF924A)]),
+          gradient: const [Color(0xFF8A5E2E), Color(0xFFBF924A)]),
         StatCard(label: 'Sholat Wajib', value: '5',
           icon: Icons.mosque_rounded,
-          gradient: [AppColors.primary, AppColors.secondary],
+          gradient: const [AppColors.primary, AppColors.secondary],
           subtitle: 'Per hari'),
         StatCard(label: 'Sholat Sunnah', value: '3',
           icon: Icons.stars_rounded,
-          gradient: [const Color(0xFF2E6B8A), const Color(0xFF4A9BBF)]),
+          gradient: const [Color(0xFF2E6B8A), Color(0xFF4A9BBF)]),
       ],
     );
   }
 
-  Widget _buildSantriSection() {
+  Widget _buildSantriSection(BuildContext context, bool isMobile) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Tentukan jumlah kolom foto profil santri
+    final int crossAxisCount = isMobile ? 3 : (screenWidth < 900 ? 4 : 6);
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionHeader(title: 'Santri Binaan Saya'),
       const SizedBox(height: 12),
@@ -104,9 +121,12 @@ class PembinaHomePage extends StatelessWidget {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5, crossAxisSpacing: 12,
-            mainAxisSpacing: 12, childAspectRatio: 0.85),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount, // RESPONSIVE SANTRI GRID
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12, 
+            childAspectRatio: isMobile ? 0.75 : 0.85
+          ),
           itemCount: _santriList.length,
           itemBuilder: (_, i) {
             final s   = _santriList[i]['santri'] as Map? ?? {};
@@ -116,12 +136,12 @@ class PembinaHomePage extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 CircleAvatar(
-                  radius: 24,
+                  radius: isMobile ? 20 : 24,
                   backgroundColor: const Color(0xFF8A5E2E).withOpacity(0.12),
                   child: Text(
                     nama.isNotEmpty ? nama[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Color(0xFF8A5E2E),
-                        fontWeight: FontWeight.w800, fontSize: 18)),
+                    style: TextStyle(color: const Color(0xFF8A5E2E),
+                        fontWeight: FontWeight.w800, fontSize: isMobile ? 16 : 18)),
                 ),
                 const SizedBox(height: 8),
                 Text(nama.split(' ').first,
@@ -138,7 +158,7 @@ class PembinaHomePage extends StatelessWidget {
   }
 }
 
-// ── Jadwal widget kecil ───────────────────────────────────
+// ── Jadwal widget ───────────────────────────────────
 class _JadwalWidget extends StatefulWidget {
   @override
   State<_JadwalWidget> createState() => _JadwalWidgetState();
@@ -162,6 +182,17 @@ class _JadwalWidgetState extends State<_JadwalWidget> {
     }
     final wajib  = _jadwal.where((j) => j['kategori'] == 'wajib').toList();
     final sunnah = _jadwal.where((j) => j['kategori'] == 'sunnah').toList();
+
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    // RESPONSIVE JADWAL LAYOUT: Susun bawah di HP, Samping di Desktop
+    if (isMobile) {
+      return Column(children: [
+        _JadwalKolom(list: wajib, color: AppColors.primary, label: 'WAJIB'),
+        const SizedBox(height: 16),
+        _JadwalKolom(list: sunnah, color: const Color(0xFF2E6B8A), label: 'SUNNAH'),
+      ]);
+    }
 
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Expanded(child: _JadwalKolom(list: wajib, color: AppColors.primary, label: 'WAJIB')),

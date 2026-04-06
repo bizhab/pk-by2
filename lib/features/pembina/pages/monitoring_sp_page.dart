@@ -55,24 +55,34 @@ class _MonitoringPageState extends State<MonitoringPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Monitoring Real-time',
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const Text('Pantau kehadiran sholat santri binaan Anda.',
-                  style: TextStyle(color: AppColors.textLight, fontSize: 13)),
-            ]),
-            ElevatedButton.icon(
-              onPressed: _load,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Refresh')),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Monitoring Real-time',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: isMobile ? 22 : 26
+                    )),
+                const Text('Pantau kehadiran sholat santri binaan Anda.',
+                    style: TextStyle(color: AppColors.textLight, fontSize: 13)),
+              ]),
+              ElevatedButton.icon(
+                onPressed: _load,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8A5E2E)),
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Refresh')),
+            ]
+          ),
           const SizedBox(height: 16),
           // Legenda
           Wrap(spacing: 16, children: const [
@@ -188,19 +198,29 @@ class _SPPageState extends State<SPPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(isMobile ? 16 : 28),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Surat Peringatan', style: Theme.of(context).textTheme.headlineMedium),
-            ElevatedButton.icon(
-              onPressed: () => _showForm(context),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Beri SP')),
-          ]),
+          // RESPONSIVE HEADER
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16, runSpacing: 12,
+            children: [
+              Text('Surat Peringatan', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontSize: isMobile ? 22 : 26
+              )),
+              ElevatedButton.icon(
+                onPressed: () => _showForm(context),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Beri SP')),
+            ]
+          ),
           const SizedBox(height: 20),
           Expanded(child: _loading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -293,74 +313,81 @@ class _SPFormDialogState extends State<_SPFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(width: 440, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppColors.error,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-          child: Row(children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            const Text('Beri Surat Peringatan', style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
-            const Spacer(),
-            IconButton(onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white)),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.error,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+              child: Row(children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Text('Beri SP', style: TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(key: _formKey, child: Column(children: [
+                DropdownButtonFormField<String>(
+                  initialValue: _santriId,
+                  decoration: const InputDecoration(labelText: 'Pilih Santri'),
+                  isExpanded: true,
+                  items: widget.santriList.map((ks) {
+                    final s = ks['santri'] as Map? ?? {};
+                    final p = s['profile'] as Map? ?? {};
+                    return DropdownMenuItem(
+                      value: s['id']?.toString(), child: Text(p['nama_lengkap'] ?? '-', maxLines: 1, overflow: TextOverflow.ellipsis));
+                  }).toList(),
+                  validator: (v) => v == null ? 'Pilih santri' : null,
+                  onChanged: (v) => setState(() => _santriId = v),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _level,
+                  decoration: const InputDecoration(labelText: 'Level SP'),
+                  items: const [
+                    DropdownMenuItem(value: 'SP1', child: Text('SP 1 — Peringatan')),
+                    DropdownMenuItem(value: 'SP2', child: Text('SP 2 — Keras')),
+                    DropdownMenuItem(value: 'SP3', child: Text('SP 3 — Terakhir')),
+                  ],
+                  onChanged: (v) => setState(() => _level = v!),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(controller: _alasan, maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Alasan / Pelanggaran', alignLabelWithHint: true),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null),
+                const SizedBox(height: 12),
+                TextFormField(controller: _hukuman,
+                  decoration: const InputDecoration(labelText: 'Hukuman (opsional)')),
+              ])),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _loading ? null : _save,
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                  child: _loading
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Keluarkan SP')),
+              ]),
+            ),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(key: _formKey, child: Column(children: [
-            DropdownButtonFormField<String>(
-              initialValue: _santriId,
-              decoration: const InputDecoration(labelText: 'Pilih Santri'),
-              items: widget.santriList.map((ks) {
-                final s = ks['santri'] as Map? ?? {};
-                final p = s['profile'] as Map? ?? {};
-                return DropdownMenuItem(
-                  value: s['id']?.toString(), child: Text(p['nama_lengkap'] ?? '-'));
-              }).toList(),
-              validator: (v) => v == null ? 'Pilih santri' : null,
-              onChanged: (v) => setState(() => _santriId = v),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _level,
-              decoration: const InputDecoration(labelText: 'Level SP'),
-              items: const [
-                DropdownMenuItem(value: 'SP1', child: Text('SP 1 — Peringatan')),
-                DropdownMenuItem(value: 'SP2', child: Text('SP 2 — Keras')),
-                DropdownMenuItem(value: 'SP3', child: Text('SP 3 — Terakhir')),
-              ],
-              onChanged: (v) => setState(() => _level = v!),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(controller: _alasan, maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Alasan / Pelanggaran', alignLabelWithHint: true),
-              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null),
-            const SizedBox(height: 12),
-            TextFormField(controller: _hukuman,
-              decoration: const InputDecoration(labelText: 'Hukuman (opsional)')),
-          ])),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: () => Navigator.pop(context),
-                child: const Text('Batal', style: TextStyle(color: AppColors.textMid))),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: _loading ? null : _save,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: _loading
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Keluarkan SP')),
-          ]),
-        ),
-      ])),
+      ),
     );
   }
 
