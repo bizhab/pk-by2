@@ -6,7 +6,7 @@ import 'admin_dashboard_home.dart';
 import '../santri/santri_list_page.dart';
 import '../dosen/dosen_list_page.dart';
 import '../pembina/pembina_list_page.dart';
-import '../kelas/kelas_list_page.dart';
+import '../kelas/kelas_list_page.dart' show KelasListPage;
 import '../all_admin_pages.dart';
 
 class AdminDashboardPage extends StatefulWidget {

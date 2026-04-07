@@ -340,37 +340,48 @@ class _TugasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final dl    = DateTime.tryParse(tugas['deadline'] ?? '');
     final over  = dl != null && DateTime.now().isAfter(dl);
     final count = (tugas['pengumpulan_tugas'] as List?)?.length ?? 0;
     const color = Color(0xFF2E6B8A);
 
     return AppCard(
-      child: Row(children: [
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: (over ? AppColors.error : color).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.assignment_rounded,
-            color: over ? AppColors.error : color, size: 22)),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tugas['judul'] ?? '-', style: const TextStyle(
-            fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textDark)),
-          Text('Deadline: ${tugas['deadline']?.toString().substring(0, 16) ?? '-'}',
-            style: TextStyle(
-              fontSize: 12,
-              color: over ? AppColors.error : AppColors.textLight)),
-        ])),
-        StatusBadge(label: '$count terkumpul', color: color),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.visibility_rounded, size: 18),
-          color: color, onPressed: onLihat),
-        IconButton(
-          icon: const Icon(Icons.delete_rounded, size: 18),
-          color: AppColors.error, onPressed: onDelete),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: (over ? AppColors.error : color).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.assignment_rounded,
+              color: over ? AppColors.error : color, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tugas['judul'] ?? '-', style: const TextStyle(
+              fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text('Deadline: ${tugas['deadline']?.toString().substring(0, 16) ?? '-'}',
+              style: TextStyle(
+                fontSize: 11,
+                color: over ? AppColors.error : AppColors.textLight)),
+          ])),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          StatusBadge(label: '$count terkumpul', color: color),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onLihat,
+            icon: Icon(Icons.visibility_rounded, size: 16, color: color),
+            label: Text('Lihat', style: TextStyle(color: color, fontSize: 12)),
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8))),
+          TextButton.icon(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_rounded, size: 16, color: AppColors.error),
+            label: const Text('Hapus', style: TextStyle(color: AppColors.error, fontSize: 12)),
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8))),
+        ]),
       ]),
     );
   }
@@ -434,32 +445,36 @@ class _PengumpulanDialogState extends State<_PengumpulanDialog> {
                       final pr = s['profile'] as Map? ?? {};
                       final nilaiCtrl = TextEditingController(
                         text: p['nilai']?.toString() ?? '');
-                      return Row(children: [
-                        AvatarBadge(
-                          name: pr['nama_lengkap'] ?? '-',
-                          subtitle: s['nim'] ?? '-',
-                          color: const Color(0xFF2E6B8A)),
-                        const Spacer(),
-                        Text(p['waktu_kumpul']?.toString().substring(0, 16) ?? '-',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 80,
-                          child: TextField(
-                            controller: nilaiCtrl,
-                            decoration: const InputDecoration(
-                              hintText: 'Nilai',
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 8)),
-                            keyboardType: TextInputType.number,
-                            onSubmitted: (v) async {
-                              final n = double.tryParse(v);
-                              if (n != null) {
-                                await DosenService.beriNilaiTugas(p['id'], n, null);
-                                _load();
-                              }
-                            })),
-                      ]);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          AvatarBadge(
+                            name: pr['nama_lengkap'] ?? '-',
+                            subtitle: s['nim'] ?? '-',
+                            color: const Color(0xFF2E6B8A)),
+                          const SizedBox(height: 6),
+                          Row(children: [
+                            Text(p['waktu_kumpul']?.toString().substring(0, 16) ?? '-',
+                              style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
+                            const Spacer(),
+                            SizedBox(
+                              width: 80,
+                              child: TextField(
+                                controller: nilaiCtrl,
+                                decoration: const InputDecoration(
+                                  hintText: 'Nilai',
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                                keyboardType: TextInputType.number,
+                                onSubmitted: (v) async {
+                                  final n = double.tryParse(v);
+                                  if (n != null) {
+                                    await DosenService.beriNilaiTugas(p['id'], n, null);
+                                    _load();
+                                  }
+                                })),
+                          ]),
+                        ]),
+                      );
                     })),
       ])),
     );

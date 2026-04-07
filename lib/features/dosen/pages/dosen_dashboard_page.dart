@@ -26,7 +26,10 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     try {
       final profile  = await SupabaseService.getMyProfile();
       final uid      = SupabaseService.currentUser?.id;
-      if (uid == null) return;
+      if (uid == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       final dosenRaw = await SupabaseService.client
           .from('dosen').select('id, nip, bidang_studi')
           .eq('profile_id', uid).single();
@@ -42,7 +45,8 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
           _loading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      print('[DosenDashboard] Error: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -56,6 +60,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     }
 
     final isMobile = MediaQuery.of(context).size.width < 800;
+    print('[DosenDashboard] build: isMobile=$isMobile, selectedIndex=$_selectedIndex, dosenData=${_dosenData?['nama_lengkap']}');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -74,6 +79,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                 selectedIndex: _selectedIndex,
                 nama: _dosenData?['nama_lengkap'] ?? 'Dosen',
                 onSelect: (i) {
+                  print('[DosenDashboard] Sidebar selected: $i');
                   setState(() => _selectedIndex = i);
                   Navigator.pop(context);
                 },
@@ -86,7 +92,10 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
               DosenSidebar(
                 selectedIndex: _selectedIndex,
                 nama: _dosenData?['nama_lengkap'] ?? 'Dosen',
-                onSelect: (i) => setState(() => _selectedIndex = i),
+                onSelect: (i) {
+                  print('[DosenDashboard] Desktop sidebar selected: $i');
+                  setState(() => _selectedIndex = i);
+                },
               ),
               Expanded(child: _buildContent()),
             ]),
@@ -94,15 +103,29 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
   }
 
   Widget _buildContent() {
+    print('[DosenDashboard] _buildContent: selectedIndex=$_selectedIndex');
     final dosenId = _dosenData?['dosen_id']?.toString() ?? '';
     final semId   = _activeSemester?['id']?.toString() ?? '';
+    
     switch (_selectedIndex) {
-      case 0: return _DosenHomePage(dosenData: _dosenData, activeSemester: _activeSemester);
-      case 1: return DosenKelasPage(dosenId: dosenId, semesterId: semId);
-      case 2: return DosenAbsensiPage(dosenId: dosenId);
-      case 3: return DosenMateriPage(dosenId: dosenId, semesterId: semId);
-      case 4: return DosenTugasPage(dosenId: dosenId, semesterId: semId);
-      default: return const SizedBox.shrink();
+      case 0: 
+        print('[DosenDashboard] Building DosenHomePage');
+        return _DosenHomePage(dosenData: _dosenData, activeSemester: _activeSemester);
+      case 1: 
+        print('[DosenDashboard] Building DosenKelasPage with dosenId=$dosenId, semId=$semId');
+        return DosenKelasPage(dosenId: dosenId, semesterId: semId);
+      case 2: 
+        print('[DosenDashboard] Building DosenAbsensiPage with dosenId=$dosenId');
+        return DosenAbsensiPage(dosenId: dosenId);
+      case 3: 
+        print('[DosenDashboard] Building DosenMateriPage with dosenId=$dosenId, semId=$semId');
+        return DosenMateriPage(dosenId: dosenId, semesterId: semId);
+      case 4: 
+        print('[DosenDashboard] Building DosenTugasPage with dosenId=$dosenId, semId=$semId');
+        return DosenTugasPage(dosenId: dosenId, semesterId: semId);
+      default: 
+        print('[DosenDashboard] Unknown index: $_selectedIndex');
+        return const SizedBox.shrink();
     }
   }
 }

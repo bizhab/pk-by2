@@ -1,18 +1,18 @@
 // ═══════════════════════════════════════════════════════════
-// semester_page.dart
+// kelas_list_page.dart
 // ═══════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:pk_nanda/core/services/supabase_service.dart';
 import 'package:pk_nanda/core/services/widgets.dart';
 import 'package:pk_nanda/core/theme/app_theme.dart';
 
-class SemesterPage extends StatefulWidget {
-  const SemesterPage({super.key});
+class KelasListPage extends StatefulWidget {
+  const KelasListPage({super.key});
   @override
-  State<SemesterPage> createState() => _SemesterPageState();
+  State<KelasListPage> createState() => _KelasListPageState();
 }
 
-class _SemesterPageState extends State<SemesterPage> {
+class _KelasListPageState extends State<KelasListPage> {
   List<Map<String, dynamic>> _semesters = [];
   bool _loading = true;
 
@@ -123,19 +123,19 @@ class _SemesterPageState extends State<SemesterPage> {
   }
 
   void _showForm(BuildContext context) {
-    showDialog(context: context, builder: (ctx) => _SemesterFormDialog(
+    showDialog(context: context, builder: (ctx) => _KelasListFormDialog(
       onSaved: () { Navigator.pop(ctx); _load(); },
     ));
   }
 }
 
-class _SemesterFormDialog extends StatefulWidget {
+class _KelasListFormDialog extends StatefulWidget {
   final VoidCallback onSaved;
-  const _SemesterFormDialog({required this.onSaved});
-  @override State<_SemesterFormDialog> createState() => _SemesterFormDialogState();
+  const _KelasListFormDialog({required this.onSaved});
+  @override State<_KelasListFormDialog> createState() => _KelasListFormDialogState();
 }
 
-class _SemesterFormDialogState extends State<_SemesterFormDialog> {
+class _KelasListFormDialogState extends State<_KelasListFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _tahunAkademik = TextEditingController();
   String? _namaSemester;

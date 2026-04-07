@@ -133,10 +133,10 @@ class _SesiCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.background, borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.divider)),
-            child: Text('🔑 ${sesi['kode_absen']}', style: const TextStyle(
+            child: Text(sesi['kode_absen'], style: const TextStyle(
               fontFamily: 'monospace', fontWeight: FontWeight.w700,
-              color: AppColors.primary, fontSize: 14, letterSpacing: 2))),
-          const SizedBox(width: 12),
+              color: AppColors.primary, fontSize: 12, letterSpacing: 1))),
+          const SizedBox(width: 8),
         ],
         StatusBadge(
           label: isOpen ? 'BUKA' : 'TUTUP',
@@ -306,22 +306,26 @@ class _AbsensiDetailPageState extends State<_AbsensiDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final sum = _summary;
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 12 : 28),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header responsif
         Row(children: [
           IconButton(
             onPressed: widget.onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary)),
-          const SizedBox(width: 8),
-          Text('Detail Absensi', style: Theme.of(context).textTheme.headlineMedium),
-          const Spacer(),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E6B8A)),
+          const SizedBox(width: 4),
+          Expanded(child: Text('Detail Absensi',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontSize: isMobile ? 18 : 24),
+            overflow: TextOverflow.ellipsis)),
+          IconButton(
             onPressed: _load,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: const Text('Refresh')),
+            icon: const Icon(Icons.refresh_rounded,
+              color: Color(0xFF2E6B8A), size: 22),
+            tooltip: 'Refresh'),
         ]),
         const SizedBox(height: 14),
         // Summary chips
