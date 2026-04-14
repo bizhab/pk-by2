@@ -3,6 +3,39 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
+  // ─── EDGE FUNCTION HELPER ─────────────────────────────
+static Future<Map<String, dynamic>> _callEdgeFunction(
+    Map<String, dynamic> body) async {
+  final session = client.auth.currentSession;
+  if (session == null) throw Exception('Tidak ada sesi aktif');
+
+  try {
+    final response = await client.functions.invoke(
+      'manage-user',
+      body: body,
+    );
+
+    if (response.data == null) {
+      throw Exception('Response kosong dari server');
+    }
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['error'] != null) throw Exception(data['error']);
+    return data;
+
+  } catch (e) {
+    // Tangkap error spesifik dan berikan pesan yang jelas
+    final msg = e.toString();
+    if (msg.contains('Failed to fetch')) {
+      throw Exception(
+        'Tidak dapat terhubung ke server.\n'
+        'Pastikan Edge Function "manage-user" sudah di-deploy di Supabase Dashboard.'
+      );
+    }
+    rethrow;
+  }
+}
+
   // ─── AUTH ───────────────────────────────────────────────
   static Future<AuthResponse> signIn(String email, String password) =>
       client.auth.signInWithPassword(email: email, password: password);
@@ -57,17 +90,21 @@ class SupabaseService {
       ''').eq('profile_id', profileId).maybeSingle();
 
   static Future<void> createSantri({
-    required String email, required String password, required String namaLengkap,
-    required String nim, required String? noHp, required String? gender,
-    required int? angkatan, required String? semesterMasukId,
+  required String email, required String password, required String namaLengkap,
+  required String nim, required String? noHp, required String? gender,
+  required int? angkatan, required String? semesterMasukId,
   }) async {
-    final authRes = await client.auth.admin.createUser(
-        AdminUserAttributes(email: email, password: password, emailConfirm: true));
-    final uid = authRes.user!.id;
-    await client.from('profiles').insert({'id': uid, 'role': 'santri',
-      'nama_lengkap': namaLengkap, 'email': email, 'no_hp': noHp, 'gender': gender});
-    await client.from('santri').insert({'profile_id': uid, 'nim': nim,
-      'angkatan': angkatan, 'semester_masuk_id': semesterMasukId});
+  await _callEdgeFunction({
+    'action'      : 'create_user',
+    'role'        : 'santri',
+    'email'       : email,
+    'password'    : password,
+    'nama_lengkap': namaLengkap,
+    'no_hp'       : noHp,
+    'gender'      : gender,
+    'nim'         : nim,
+    'angkatan'    : angkatan,
+  });
   }
 
   static Future<void> updateSantri(String santriId,
@@ -77,8 +114,12 @@ class SupabaseService {
     if (santriData.isNotEmpty) await client.from('santri').update(santriData).eq('id', santriId);
   }
 
-  static Future<void> deleteSantri(String profileId) async =>
-      await client.auth.admin.deleteUser(profileId);
+  static Future<void> deleteSantri(String profileId) async {
+  await _callEdgeFunction({
+    'action'    : 'delete_user',
+    'profile_id': profileId,
+  });
+  }
 
   static Future<Map<String, dynamic>> getRaporSantri(String santriId) async {
     final results = await Future.wait([
@@ -153,23 +194,30 @@ class SupabaseService {
         profile:profile_id(id, nama_lengkap, email, no_hp, gender, foto_url)
       ''').order('nip');
 
-  static Future<Map<String, dynamic>?> getDosenByProfileId(String profileId) async =>
-      await client.from('dosen').select('id, nip, bidang_studi').eq('profile_id', profileId).maybeSingle();
-
-  static Future<void> createDosen({
+    static Future<void> createDosen({
     required String email, required String password, required String namaLengkap,
-    required String nip, required String? bidangStudi, required String? noHp, required String? gender,
+    required String nip, required String? bidangStudi,
+    required String? noHp, required String? gender,
   }) async {
-    final authRes = await client.auth.admin.createUser(
-        AdminUserAttributes(email: email, password: password, emailConfirm: true));
-    final uid = authRes.user!.id;
-    await client.from('profiles').insert({'id': uid, 'role': 'dosen',
-      'nama_lengkap': namaLengkap, 'email': email, 'no_hp': noHp, 'gender': gender});
-    await client.from('dosen').insert({'profile_id': uid, 'nip': nip, 'bidang_studi': bidangStudi});
+    await _callEdgeFunction({
+      'action'       : 'create_user',
+      'role'         : 'dosen',
+      'email'        : email,
+      'password'     : password,
+      'nama_lengkap' : namaLengkap,
+      'no_hp'        : noHp,
+      'gender'       : gender,
+      'nip'          : nip,
+      'bidang_studi' : bidangStudi,
+    });
   }
 
-  static Future<void> deleteDosen(String profileId) async =>
-      await client.auth.admin.deleteUser(profileId);
+  static Future<void> deleteDosen(String profileId) async {
+  await _callEdgeFunction({
+    'action'    : 'delete_user',
+    'profile_id': profileId,
+  });
+}
 
   static Future<List<Map<String, dynamic>>> getKelasByDosen(String dosenId) async =>
       await client.from('kelas').select('''
@@ -270,20 +318,28 @@ class SupabaseService {
   static Future<Map<String, dynamic>?> getPembinaByProfileId(String profileId) async =>
       await client.from('pembina').select('id, kode_pembina').eq('profile_id', profileId).maybeSingle();
 
-  static Future<void> createPembina({required String email, required String password,
-      required String namaLengkap, required String kodePembina,
-      required String? noHp, required String? gender}) async {
-    final authRes = await client.auth.admin.createUser(
-        AdminUserAttributes(email: email, password: password, emailConfirm: true));
-    final uid = authRes.user!.id;
-    await client.from('profiles').insert({'id': uid, 'role': 'pembina',
-      'nama_lengkap': namaLengkap, 'email': email, 'no_hp': noHp, 'gender': gender});
-    await client.from('pembina').insert({'profile_id': uid, 'kode_pembina': kodePembina});
-  }
+  static Future<void> createPembina({
+  required String email, required String password, required String namaLengkap,
+  required String kodePembina, required String? noHp, required String? gender,
+}) async {
+  await _callEdgeFunction({
+    'action'        : 'create_user',
+    'role'          : 'pembina',
+    'email'         : email,
+    'password'      : password,
+    'nama_lengkap'  : namaLengkap,
+    'no_hp'         : noHp,
+    'gender'        : gender,
+    'kode_pembina'  : kodePembina,
+  });
+}
 
-  static Future<void> deletePembina(String profileId) async =>
-      await client.auth.admin.deleteUser(profileId);
-
+  static Future<void> deletePembina(String profileId) async {
+  await _callEdgeFunction({
+    'action'    : 'delete_user',
+    'profile_id': profileId,
+  });
+}
   static Future<Map<String, dynamic>?> getKelompokByPembina(String pembinaId, String semesterId) async =>
       await client.from('kelompok_pembina').select('''
         id, nama_kelompok,

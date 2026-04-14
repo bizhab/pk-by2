@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/services/widgets.dart';
+import '../../../core/utils/responsive.dart'; // Tambahkan ini
 
 class DosenKelasPage extends StatefulWidget {
   final String dosenId;
@@ -36,42 +37,39 @@ class _DosenKelasPageState extends State<DosenKelasPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Padding(
-        padding: EdgeInsets.all(isMobile ? 16 : 28),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontSize: isMobile ? 22 : 26
-          )),
-          Text('${_kelas.length} kelas diampu semester ini',
-            style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
-          const SizedBox(height: 20),
-          Expanded(
-            child: _loading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E6B8A)))
-              : _kelas.isEmpty
-                  ? const EmptyState(icon: Icons.class_outlined,
-                      message: 'Belum ditugaskan ke kelas apapun')
-                  : GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isMobile ? 1 : (screenWidth < 900 ? 2 : 3), // RESPONSIVE GRID
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16, 
-                        childAspectRatio: isMobile ? 2.0 : 1.5,
-                      ),
-                      itemCount: _kelas.length,
-                      itemBuilder: (_, i) => _KelasCard(kelas: _kelas[i])),
-          ),
-        ]),
-      ),
+    // HAPUS Scaffold, ganti langsung dengan Padding
+    return Padding(
+      padding: context.responsive.contentPadding, // Gunakan spacing dari responsive helper Anda
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Kelas Saya', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontSize: context.responsive.getFont(mobile: 22, tablet: 26)
+        )),
+        Text('${_kelas.length} kelas diampu semester ini',
+          style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
+        const SizedBox(height: 20),
+        Expanded(
+          child: _loading
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E6B8A)))
+            : _kelas.isEmpty
+                ? const EmptyState(icon: Icons.class_outlined,
+                    message: 'Belum ditugaskan ke kelas apapun')
+                : GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      // Gunakan perhitungan grid otomatis dari class Anda
+                      crossAxisCount: context.responsive.getGridCount(mobile: 1, tablet: 2, desktop: 3),
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16, 
+                      childAspectRatio: context.isMobile ? 2.0 : 1.5,
+                    ),
+                    itemCount: _kelas.length,
+                    itemBuilder: (_, i) => _KelasCard(kelas: _kelas[i])),
+        ),
+      ]),
     );
   }
 }
 
+// Bagian _KelasCard dibiarkan sama seperti aslinya
 class _KelasCard extends StatelessWidget {
   final Map<String, dynamic> kelas;
   const _KelasCard({required this.kelas});
